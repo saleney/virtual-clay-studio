@@ -6,6 +6,7 @@ const status = document.querySelector('[data-status]');
 const stageNote = document.querySelector('[data-stage-note]');
 const caption = document.querySelector('[data-caption]');
 const fallback = document.querySelector('[data-fallback]');
+const hands = document.querySelector('[data-hands]');
 const materials = {
   terracotta:{color:0x8e6b5a,roughness:.55,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
   stoneware:{color:0x807667,roughness:.58,metalness:0}, red:{color:0x904332,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
@@ -16,11 +17,11 @@ const segments = mobile ? 40 : 56;
 const minRadius = .3;
 const minGap = .045;
 const state = {
-  material:'terracotta', fired:false, phase:'form', profile:[], history:[], redo:[], pointer:null,
+  material:'terracotta', fired:false, phase:'form', profile:[], opening:{radius:0,depth:0}, history:[], redo:[], pointer:null,
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
   yaw:-.08, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4}, before:null, strokeChanged:false
 };
-let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, lastTime=0;
+let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerWall, lastTime=0;
 
 try { init(); } catch (error) { console.error(error); fallback.classList.add('is-visible'); }
 
@@ -46,7 +47,7 @@ function init() {
 function initialProfile() {
   return Array.from({length:ringCount},(_,i)=>{
     const t=i/(ringCount-1); const settle=Math.sin(Math.PI*t);
-    return {y:-1.34+t*1.78,r:Math.max(minRadius,1.13+.06*settle-.15*t)};
+    return {y:-1.34+t*1.34,r:Math.max(minRadius,1.2+.075*settle-.025*t)};
   });
 }
 function makeWheelHeadTexture() {
@@ -83,8 +84,9 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
   return {radius:throwingRing+softWobble+slipStreak, moisture};
 }
 function makeClay() {
-  state.profile=initialProfile(); state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
+  state.profile=initialProfile(); state.opening={radius:0,depth:0}; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
   if (clay) wheelGroup.remove(clay); geometry=new THREE.BufferGeometry();
+  if (innerWall) { wheelGroup.remove(innerWall); innerWall.geometry.dispose(); innerWall.material.dispose(); innerWall=null; }
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
   glazeCanvas=glazeContext=glazeTexture=glazeMaterial=null;
   material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.045,metalness:materials[state.material].metalness,clearcoat:.1,clearcoatRoughness:.42,vertexColors:true,flatShading:false});
@@ -95,8 +97,17 @@ function rebuildMesh() {
   state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const radius=ring.r+detail.radius;vertices.push(Math.cos(a)*radius,ring.y,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
   for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=r*segments+s,b=(r+1)*segments+s,c=(r+1)*segments+next,d=r*segments+next;indices.push(a,b,d,b,c,d);}
   const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y,0);colors.push(.97,.93,.89);uvs.push(.5,1);
-  for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,a,b);}
+  for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);if(!state.opening.depth){const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,a,b);}}
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+  updateOpeningVisual();
+}
+function updateOpeningVisual(){
+  if(innerWall){wheelGroup.remove(innerWall);innerWall.geometry.dispose();innerWall.material.dispose();innerWall=null;}
+  if(state.opening.depth<.08)return;
+  const top=state.profile.at(-1).y-.006, bottom=top-state.opening.depth;
+  const wall=new THREE.Mesh(new THREE.CylinderGeometry(state.opening.radius*.98,state.opening.radius*.9,state.opening.depth,segments,1,true),new THREE.MeshStandardMaterial({color:0x3d2419,roughness:.72,side:THREE.BackSide}));
+  wall.position.y=(top+bottom)/2; wheelGroup.add(wall);
+  const floor=new THREE.Mesh(new THREE.CircleGeometry(state.opening.radius*.9,segments),new THREE.MeshStandardMaterial({color:0x4c2b1d,roughness:.76,side:THREE.DoubleSide}));floor.rotation.x=-Math.PI/2;floor.position.y=bottom;wall.add(floor);innerWall=wall;
 }
 function updateMaterial() { const sample=materials[state.material]; material.color.setHex(sample.color); material.roughness=state.fired?Math.max(.24,sample.roughness-.23):sample.roughness; material.metalness=0; material.clearcoat=state.fired?.24:.17; material.clearcoatRoughness=state.fired?.22:.3; material.needsUpdate=true; }
 function makeGlazeLayer() {
@@ -114,12 +125,12 @@ function paintGlaze(uv,speed=0){
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';surface.classList.add('is-glazing');makeGlazeLayer();stageNote.textContent='touch the turning ceramic';caption.textContent='Hold still for a band. Drift up or down for a spiral. Every pass leaves more glaze.';status.textContent='The wheel keeps turning. Touch the vessel and let the glaze gather.';}
-function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.updateProjectionMatrix();}
-function setCamera(){const radius=5.8;camera.position.set(Math.sin(state.yaw)*radius,.76+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-.62,0);}
+function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=mobile?52:39;camera.updateProjectionMatrix();}
+function setCamera(){const radius=6.85;camera.position.set(Math.sin(state.yaw)*radius,.32+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-.78,0);}
 function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){const r=renderer.domElement.getBoundingClientRect();pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);return raycaster.intersectObject(clay,false)[0]||null;}
 function getHit(event){return getHitAt(event.clientX,event.clientY);}
-function cloneProfile(){return state.profile.map(r=>({...r}));}
+function cloneProfile(){return {rings:state.profile.map(r=>({...r})),opening:{...state.opening}};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
 function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
@@ -132,23 +143,29 @@ function editProfile(index,radial,vertical){
   else applyRadius(index,radial*.0052);
   rebuildMesh();state.strokeChanged=true;
 }
+function moveHands(clientX,clientY,active){
+  if(!hands)return;const r=renderer.domElement.getBoundingClientRect();hands.style.setProperty('--hand-x',`${((clientX-r.left)/r.width)*100}%`);hands.style.setProperty('--hand-y',`${((clientY-r.top)/r.height)*100}%`);hands.classList.toggle('is-resting',!active);
+}
+function openClay(amount){
+  const nextRadius=THREE.MathUtils.clamp(state.opening.radius+amount*.0048,.18,.66);const nextDepth=THREE.MathUtils.clamp(state.opening.depth+amount*.008,.08,.82);state.opening={radius:nextRadius,depth:nextDepth};rebuildMesh();state.strokeChanged=true;
+}
 function onDown(event){
   renderer.domElement.focus();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
   if(state.phase==='glaze'){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};return;}
-  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index:profileIndexFromHit(hit)};saveBeforeStroke();
+  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const upperCenter=local.y>top-.2&&Math.hypot(local.x,local.z)<state.profile.at(-1).r*.72;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,opening:(index>ringCount-5||upperCenter)&&state.opening.depth===0};saveBeforeStroke();moveHands(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.phase==='glaze'&&state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);return;}
-  if(state.phase!=='form'||!state.pointer||state.pointer.id!==event.pointerId)return;const dx=event.clientX-state.pointer.x,dy=event.clientY-state.pointer.y;if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;editProfile(state.pointer.index,radial,dy);state.pointer.x=event.clientX;state.pointer.y=event.clientY;status.textContent=Math.abs(dy)>Math.abs(radial)*1.12?(dy<0?'The clay rises under your hand.':'The clay settles and gathers.'):(radial>0?'The wall opens outward.':'The wall comes inward.');
+  if(state.phase!=='form'||!state.pointer||state.pointer.id!==event.pointerId)return;const dx=event.clientX-state.pointer.x,dy=event.clientY-state.pointer.y;if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;if(state.pointer.opening&&dy>0)openClay(dy);else editProfile(state.pointer.index,radial,dy);state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveHands(event.clientX,event.clientY,true);status.textContent=state.pointer.opening&&dy>0?'The center opens under your hands.':Math.abs(dy)>Math.abs(radial)*1.12?(dy<0?'The clay rises under your hand.':'The clay settles and gathers.'):(radial>0?'The wall opens outward.':'The wall comes inward.');
 }
 function onUp(event){
   if(state.phase==='glaze'&&state.glaze.pointer?.id===event.pointerId){if(state.glaze.changed){state.glaze.history.push(state.glaze.before);if(state.glaze.history.length>18)state.glaze.history.shift();state.glaze.redo=[];}state.glaze.before=null;state.glaze.pointer=null;return;}
-  if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;}
+  if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;hands?.classList.add('is-resting');}
 }
-function restore(profile){state.profile=profile.map(r=>({...r}));rebuildMesh();}
+function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.opening={...snapshot.opening};rebuildMesh();}
 function resetView(){state.yaw=-.08;state.pitch=0;}
 function fire(){if(state.phase!=='form')return;state.fired=true;state.phase='fired';surface.classList.add('is-fired');material.color.lerp(new THREE.Color(0x70402f),.18);updateMaterial();status.textContent='Fired. The wheel keeps turning while the surface waits for glaze.';}
 function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
-function bind(){renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('pointermove',onMove);renderer.domElement.addEventListener('pointerup',onUp);renderer.domElement.addEventListener('pointercancel',onUp);renderer.domElement.addEventListener('keydown',keyboardShape);document.querySelectorAll('[data-undo]').forEach(button=>button.addEventListener('click',undo));document.querySelectorAll('[data-redo]').forEach(button=>button.addEventListener('click',redo));document.querySelector('[data-fire]').addEventListener('click',fire);document.querySelector('[data-glaze]').addEventListener('click',enterGlaze);document.querySelector('[data-back]').addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));}
+function bind(){renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('pointermove',onMove);renderer.domElement.addEventListener('pointerup',onUp);renderer.domElement.addEventListener('pointercancel',onUp);renderer.domElement.addEventListener('keydown',keyboardShape);document.querySelectorAll('[data-undo]').forEach(button=>button.addEventListener('click',undo));document.querySelectorAll('[data-redo]').forEach(button=>button.addEventListener('click',redo));document.querySelector('[data-fire]')?.addEventListener('click',fire);document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze);document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));}
