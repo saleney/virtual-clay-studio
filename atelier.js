@@ -6,22 +6,22 @@ const status = document.querySelector('[data-status]');
 const stageNote = document.querySelector('[data-stage-note]');
 const caption = document.querySelector('[data-caption]');
 const fallback = document.querySelector('[data-fallback]');
-const hands = document.querySelector('[data-hands]');
+const contact = document.querySelector('[data-contact]');
 const materials = {
-  terracotta:{color:0x8e6b5a,roughness:.55,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
+  terracotta:{color:0x958675,roughness:.72,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
   stoneware:{color:0x807667,roughness:.58,metalness:0}, red:{color:0x904332,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
 };
 const mobile = matchMedia('(max-width:620px)').matches;
 const ringCount = mobile ? 36 : 46;
 const segments = mobile ? 40 : 56;
 const minRadius = .3;
-const minGap = .045;
+const minGap = .018;
 const state = {
-  material:'terracotta', fired:false, phase:'form', profile:[], opening:{radius:0,depth:0}, history:[], redo:[], pointer:null,
+  material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, history:[], redo:[], pointer:null,
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
-  yaw:-.08, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4}, before:null, strokeChanged:false
+  yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4}, before:null, strokeChanged:false
 };
-let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerWall, lastTime=0;
+let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerMesh, lastTime=0;
 
 try { init(); } catch (error) { console.error(error); fallback.classList.add('is-visible'); }
 
@@ -32,9 +32,9 @@ function init() {
   renderer.domElement.tabIndex=0; renderer.domElement.setAttribute('aria-label','Three-dimensional pottery wheel. Touch and guide the spinning clay. When focused, use arrow keys to shape its middle.'); stage.append(renderer.domElement);
   scene=new THREE.Scene(); camera=new THREE.PerspectiveCamera(33,1,.1,100); raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
   scene.add(new THREE.HemisphereLight(0xfffbf2,0x62594d,1.42));
-  const key=new THREE.DirectionalLight(0xfff0d5,3.5); key.position.set(-5,5.2,4.5); key.castShadow=true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.left=-5; key.shadow.camera.right=5; key.shadow.camera.top=5; key.shadow.camera.bottom=-5; key.shadow.bias=-.00015; key.shadow.normalBias=.025; key.shadow.radius=4; scene.add(key);
-  const fill=new THREE.DirectionalLight(0xd5e4e3,.78); fill.position.set(4,2.4,3); scene.add(fill);
-  const rim=new THREE.DirectionalLight(0xffe1b8,.38); rim.position.set(-3,3.6,-4); scene.add(rim);
+  const key=new THREE.DirectionalLight(0xffe6c9,2.65); key.position.set(-4.2,5.8,3.4); key.castShadow=true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.left=-5; key.shadow.camera.right=5; key.shadow.camera.top=5; key.shadow.camera.bottom=-5; key.shadow.bias=-.00015; key.shadow.normalBias=.025; key.shadow.radius=4; scene.add(key);
+  const fill=new THREE.DirectionalLight(0xcbd5d1,.55); fill.position.set(4,2.4,3); scene.add(fill);
+  const rim=new THREE.DirectionalLight(0xffd8ad,.26); rim.position.set(-3,3.6,-4); scene.add(rim);
   wheelGroup=new THREE.Group(); scene.add(wheelGroup);
   const base=new THREE.Mesh(new THREE.CylinderGeometry(2.72,2.95,.48,72),new THREE.MeshStandardMaterial({color:0x47372e,roughness:.88})); base.position.y=-1.78; base.receiveShadow=true; wheelGroup.add(base);
   const wheel=new THREE.Mesh(new THREE.CylinderGeometry(2.5,2.58,.17,72),new THREE.MeshStandardMaterial({color:0x80614a,map:makeWheelHeadTexture(),roughness:.72})); wheel.position.y=-1.425; wheel.castShadow=true; wheel.receiveShadow=true; wheelGroup.add(wheel);
@@ -47,7 +47,7 @@ function init() {
 function initialProfile() {
   return Array.from({length:ringCount},(_,i)=>{
     const t=i/(ringCount-1); const settle=Math.sin(Math.PI*t);
-    return {y:-1.34+t*1.34,r:Math.max(minRadius,1.2+.075*settle-.025*t)};
+    return {y:-1.34+t*1.34,r:Math.max(minRadius,1.18+.1*settle-.34*Math.pow(t,2.5))};
   });
 }
 function makeWheelHeadTexture() {
@@ -67,8 +67,8 @@ function makeClayMaps() {
     const rings=Math.sin(v*132+Math.sin(v*23)*2.3+Math.sin(u*Math.PI*2*2.0)*1.1);
     const streak=Math.max(0,Math.sin(u*Math.PI*2*3.0-v*21))*Math.max(0,Math.sin(u*Math.PI*2*7.0+v*8.0));
     const damp=.5+grain*.16+rings*.07-streak*.11;
-    colorData.data[i]=Math.round(236+damp*14); colorData.data[i+1]=Math.round(218+damp*9); colorData.data[i+2]=Math.round(203+damp*6); colorData.data[i+3]=255;
-    const rough=Math.max(0,Math.min(255,148-grain*19-rings*13-streak*36)); roughData.data[i]=roughData.data[i+1]=roughData.data[i+2]=rough; roughData.data[i+3]=255;
+    colorData.data[i]=Math.round(206+damp*16); colorData.data[i+1]=Math.round(196+damp*14); colorData.data[i+2]=Math.round(178+damp*11); colorData.data[i+3]=255;
+    const rough=Math.max(0,Math.min(255,184-grain*17-rings*12-streak*28)); roughData.data[i]=roughData.data[i+1]=roughData.data[i+2]=rough; roughData.data[i+3]=255;
     const relief=Math.max(0,Math.min(255,128+grain*29+rings*17+streak*12)); bumpData.data[i]=bumpData.data[i+1]=bumpData.data[i+2]=relief; bumpData.data[i+3]=255;
   }
   color.getContext('2d').putImageData(colorData,0,0); roughness.getContext('2d').putImageData(roughData,0,0); bump.getContext('2d').putImageData(bumpData,0,0);
@@ -84,32 +84,37 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
   return {radius:throwingRing+softWobble+slipStreak, moisture};
 }
 function makeClay() {
-  state.profile=initialProfile(); state.opening={radius:0,depth:0}; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
+  state.profile=initialProfile(); state.innerProfile=null; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
   if (clay) wheelGroup.remove(clay); geometry=new THREE.BufferGeometry();
-  if (innerWall) { wheelGroup.remove(innerWall); innerWall.geometry.dispose(); innerWall.material.dispose(); innerWall=null; }
+  if (innerMesh) { wheelGroup.remove(innerMesh); innerMesh.geometry.dispose(); innerMesh.material.dispose(); innerMesh=null; }
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
   glazeCanvas=glazeContext=glazeTexture=glazeMaterial=null;
-  material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.045,metalness:materials[state.material].metalness,clearcoat:.1,clearcoatRoughness:.42,vertexColors:true,flatShading:false});
+  material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.035,metalness:materials[state.material].metalness,clearcoat:.035,clearcoatRoughness:.68,vertexColors:true,side:THREE.DoubleSide,flatShading:false});
   clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); updateMaterial(); resetView();
 }
 function rebuildMesh() {
+  if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
   state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const radius=ring.r+detail.radius;vertices.push(Math.cos(a)*radius,ring.y,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
   for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=r*segments+s,b=(r+1)*segments+s,c=(r+1)*segments+next,d=r*segments+next;indices.push(a,b,d,b,c,d);}
-  const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y,0);colors.push(.97,.93,.89);uvs.push(.5,1);
-  for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);if(!state.opening.depth){const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,a,b);}}
+  const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+.065,0);colors.push(.97,.93,.89);uvs.push(.5,1);
+  const hasOpening=Boolean(state.innerProfile?.length);
+  for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);if(!hasOpening){const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,b,a);}}
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
-  updateOpeningVisual();
+  if(hasOpening)buildInteriorMesh();
 }
-function updateOpeningVisual(){
-  if(innerWall){wheelGroup.remove(innerWall);innerWall.geometry.dispose();innerWall.material.dispose();innerWall=null;}
-  if(state.opening.depth<.08)return;
-  const top=state.profile.at(-1).y-.006, bottom=top-state.opening.depth;
-  const wall=new THREE.Mesh(new THREE.CylinderGeometry(state.opening.radius*.98,state.opening.radius*.9,state.opening.depth,segments,1,true),new THREE.MeshStandardMaterial({color:0x3d2419,roughness:.72,side:THREE.BackSide}));
-  wall.position.y=(top+bottom)/2; wheelGroup.add(wall);
-  const floor=new THREE.Mesh(new THREE.CircleGeometry(state.opening.radius*.9,segments),new THREE.MeshStandardMaterial({color:0x4c2b1d,roughness:.76,side:THREE.DoubleSide}));floor.rotation.x=-Math.PI/2;floor.position.y=bottom;wall.add(floor);innerWall=wall;
+function buildInteriorMesh(){
+  const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile;
+  for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;vertices.push(Math.cos(a)*top.r,top.y,Math.sin(a)*top.r);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
+  const innerStart=vertices.length/3;
+  inner.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;vertices.push(Math.cos(a)*ring.r,ring.y,Math.sin(a)*ring.r);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
+  for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=innerStart+r*segments+s,b=innerStart+(r+1)*segments+s,c=innerStart+(r+1)*segments+next,d=innerStart+r*segments+next;indices.push(a,d,b,b,d,c);}
+  const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(floorCenter,innerStart+s,innerStart+next);}
+  const innerTop=innerStart+(inner.length-1)*segments;for(let s=0;s<segments;s++){const next=(s+1)%segments;const oa=s,ob=next,ia=innerTop+s,ib=innerTop+next;indices.push(oa,ob,ia,ob,ib,ia);}
+  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();
+  const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;innerMesh=new THREE.Mesh(innerGeometry,innerMaterial);innerMesh.castShadow=true;innerMesh.receiveShadow=true;wheelGroup.add(innerMesh);
 }
-function updateMaterial() { const sample=materials[state.material]; material.color.setHex(sample.color); material.roughness=state.fired?Math.max(.24,sample.roughness-.23):sample.roughness; material.metalness=0; material.clearcoat=state.fired?.24:.17; material.clearcoatRoughness=state.fired?.22:.3; material.needsUpdate=true; }
+function updateMaterial() { const sample=materials[state.material]; material.color.setHex(sample.color); material.roughness=state.fired?Math.max(.3,sample.roughness-.18):sample.roughness; material.metalness=0; material.clearcoat=state.fired?.16:.055; material.clearcoatRoughness=state.fired?.32:.62; material.needsUpdate=true; }
 function makeGlazeLayer() {
   const size=mobile?256:512; glazeCanvas=document.createElement('canvas'); glazeCanvas.width=glazeCanvas.height=size; glazeContext=glazeCanvas.getContext('2d');
   glazeTexture=new THREE.CanvasTexture(glazeCanvas); glazeTexture.colorSpace=THREE.SRGBColorSpace; glazeTexture.wrapS=THREE.RepeatWrapping; glazeTexture.wrapT=THREE.ClampToEdgeWrapping;
@@ -126,44 +131,117 @@ function paintGlaze(uv,speed=0){
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';surface.classList.add('is-glazing');makeGlazeLayer();stageNote.textContent='touch the turning ceramic';caption.textContent='Hold still for a band. Drift up or down for a spiral. Every pass leaves more glaze.';status.textContent='The wheel keeps turning. Touch the vessel and let the glaze gather.';}
 function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=mobile?52:39;camera.updateProjectionMatrix();}
-function setCamera(){const radius=6.85;camera.position.set(Math.sin(state.yaw)*radius,.32+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-.78,0);}
+function setCamera(){const radius=6.55;camera.position.set(Math.sin(state.yaw)*radius,2.15+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-.82,0);}
 function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
-function getHitAt(clientX,clientY){const r=renderer.domElement.getBoundingClientRect();pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;raycaster.setFromCamera(pointer,camera);return raycaster.intersectObject(clay,false)[0]||null;}
+function getHitAt(clientX,clientY){
+  const r=renderer.domElement.getBoundingClientRect();
+  pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  // Once a hollow exists, the inner surface is a real, separate mesh. Raycast it
+  // too so a gesture that begins inside the pot is never mistaken for an outside
+  // wall gesture.
+  const targets=innerMesh?[innerMesh,clay]:[clay];
+  return raycaster.intersectObjects(targets,false)[0]||null;
+}
 function getHit(event){return getHitAt(event.clientX,event.clientY);}
-function cloneProfile(){return {rings:state.profile.map(r=>({...r})),opening:{...state.opening}};}
+function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
 function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
-function applyRadius(index,amount){state.profile.forEach((ring,i)=>{const d=Math.abs(i-index);if(d>6)return;const falloff=Math.pow(1-d/7,2);ring.r=THREE.MathUtils.clamp(ring.r+amount*falloff,minRadius,1.68);});}
-function applyHeight(index,amount){state.profile.forEach((ring,i)=>{const d=Math.abs(i-index);if(d>7)return;const falloff=Math.pow(1-d/8,2);ring.y+=amount*falloff;});for(let i=1;i<state.profile.length;i++)state.profile[i].y=Math.max(state.profile[i].y,state.profile[i-1].y+minGap);for(let i=state.profile.length-2;i>=0;i--)state.profile[i].y=Math.min(state.profile[i].y,state.profile[i+1].y-minGap);const center=(state.profile[0].y+state.profile.at(-1).y)/2;state.profile.forEach(ring=>ring.y=THREE.MathUtils.clamp(ring.y-center,-1.48,1.55));}
+function stabilizeProfile(){
+  const baseY=-1.34; const maxTop=.95; const maxSlope=.055; const maxGap=.06;
+  state.profile[0].y=baseY;
+  for(let i=1;i<state.profile.length;i++)state.profile[i].y=THREE.MathUtils.clamp(state.profile[i].y,state.profile[i-1].y+minGap,state.profile[i-1].y+maxGap);
+  const top=state.profile.at(-1).y;
+  if(top>maxTop){const scale=(maxTop-baseY)/(top-baseY);state.profile.forEach(ring=>ring.y=baseY+(ring.y-baseY)*scale);}
+  for(let i=1;i<state.profile.length;i++)state.profile[i].r=THREE.MathUtils.clamp(state.profile[i].r,state.profile[i-1].r-maxSlope,state.profile[i-1].r+maxSlope);
+  for(let i=state.profile.length-2;i>=0;i--)state.profile[i].r=THREE.MathUtils.clamp(state.profile[i].r,state.profile[i+1].r-maxSlope,state.profile[i+1].r+maxSlope);
+}
+function smoothProfileRadius(index,buffer=11,passes=2){
+  const from=Math.max(1,index-buffer),to=Math.min(state.profile.length-2,index+buffer);
+  for(let pass=0;pass<passes;pass++){
+    const next=state.profile.map(ring=>ring.r);
+    for(let i=from;i<=to;i++)next[i]=state.profile[i-1].r*.18+state.profile[i].r*.64+state.profile[i+1].r*.18;
+    for(let i=from;i<=to;i++)state.profile[i].r=next[i];
+  }
+}
+function applyRadius(index,amount){
+  const limited=THREE.MathUtils.clamp(amount,-.038,.038),sigma=6.6;
+  state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>14)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,1.45);});
+  smoothProfileRadius(index);stabilizeProfile();
+}
+function applyHeight(index,amount){
+  const limited=THREE.MathUtils.clamp(amount,-.032,.032),sigma=7.2;
+  state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>15)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.y+=limited*falloff;});
+  stabilizeProfile();
+}
 function editProfile(index,radial,vertical){
   // The vessel spins in world space, but its profile remains axisymmetric. Screen motion is
   // therefore mapped to a stable ring index instead of chasing individual rotating vertices.
-  if(Math.abs(vertical)>Math.abs(radial)*1.12) applyHeight(index,-vertical*.0035);
-  else applyRadius(index,radial*.0052);
+  if(Math.abs(vertical)>Math.abs(radial)*1.12) applyHeight(index,-vertical*.00115);
+  else applyRadius(index,radial*.0018);
   rebuildMesh();state.strokeChanged=true;
 }
-function moveHands(clientX,clientY,active){
-  if(!hands)return;const r=renderer.domElement.getBoundingClientRect();hands.style.setProperty('--hand-x',`${((clientX-r.left)/r.width)*100}%`);hands.style.setProperty('--hand-y',`${((clientY-r.top)/r.height)*100}%`);hands.classList.toggle('is-resting',!active);
+function moveContact(clientX,clientY,active){
+  if(!contact)return;const r=renderer.domElement.getBoundingClientRect();contact.style.left=`${clientX-r.left}px`;contact.style.top=`${clientY-r.top}px`;contact.classList.toggle('is-active',active);
 }
-function openClay(amount){
-  const nextRadius=THREE.MathUtils.clamp(state.opening.radius+amount*.0048,.18,.66);const nextDepth=THREE.MathUtils.clamp(state.opening.depth+amount*.008,.08,.82);state.opening={radius:nextRadius,depth:nextDepth};rebuildMesh();state.strokeChanged=true;
+function outerRadiusAt(y){
+  for(let i=1;i<state.profile.length;i++){const a=state.profile[i-1],b=state.profile[i];if(y<=b.y){const t=THREE.MathUtils.clamp((y-a.y)/(b.y-a.y),0,1);return THREE.MathUtils.lerp(a.r,b.r,t);}}
+  return state.profile.at(-1).r;
+}
+function setInterior(depth,radius){
+  const top=state.profile.at(-1).y;const floorY=THREE.MathUtils.clamp(top-depth,state.profile[0].y+.22,top-.025);const outerAtFloor=outerRadiusAt(floorY);const maxRadius=Math.max(.035,Math.min(outerAtFloor-.16,state.profile.at(-1).r-.12));const rimRadius=THREE.MathUtils.clamp(radius,.025,maxRadius);const floorRadius=Math.max(.018,rimRadius*.58);const lift=top-floorY;
+  const innerRings=9;
+  state.innerProfile=Array.from({length:innerRings},(_,index)=>{
+    const t=index/(innerRings-1), eased=t*t*(3-2*t);
+    return {y:THREE.MathUtils.lerp(floorY,top,t),r:THREE.MathUtils.lerp(floorRadius,rimRadius,eased)};
+  });
+  rebuildMesh();state.strokeChanged=true;
+}
+function interiorInfo(){if(!state.innerProfile)return null;const floor=state.innerProfile[0],rim=state.innerProfile.at(-1);return {depth:state.profile.at(-1).y-floor.y,radius:rim.r,floorY:floor.y};}
+function openClay(depthDelta,radiusDelta=0){
+  const current=interiorInfo();const depthBase=current?.depth||.01;const radiusBase=current?.radius||.055;setInterior(THREE.MathUtils.clamp(depthBase+depthDelta,.028,.62),THREE.MathUtils.clamp(radiusBase+radiusDelta,.04,.58));
+}
+function widenInterior(amount){
+  if(!state.innerProfile)return;
+  // Pulling from inside moves the inner floor most. The upper inner rings follow
+  // softly, so the outside silhouette stays put while a believable wall develops.
+  const last=state.innerProfile.length-1;
+  state.innerProfile.forEach((ring,index)=>{
+    const falloff=THREE.MathUtils.lerp(1,.48,index/last);
+    const safeRadius=Math.max(.018,outerRadiusAt(ring.y)-.16);
+    ring.r=THREE.MathUtils.clamp(ring.r+amount*falloff,.018,safeRadius);
+  });
+  // Soften only the inner floor-to-wall transition, retaining its overall pull.
+  for(let pass=0;pass<2;pass++){
+    const next=state.innerProfile.map(ring=>ring.r);
+    for(let i=1;i<state.innerProfile.length-1;i++)next[i]=state.innerProfile[i-1].r*.16+state.innerProfile[i].r*.68+state.innerProfile[i+1].r*.16;
+    for(let i=1;i<state.innerProfile.length-1;i++)state.innerProfile[i].r=next[i];
+  }
+  rebuildMesh();state.strokeChanged=true;
 }
 function onDown(event){
   renderer.domElement.focus();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
   if(state.phase==='glaze'){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};return;}
-  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const upperCenter=local.y>top-.2&&Math.hypot(local.x,local.z)<state.profile.at(-1).r*.72;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,opening:(index>ringCount-5||upperCenter)&&state.opening.depth===0};saveBeforeStroke();moveHands(event.clientX,event.clientY,true);
+  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;const inside=state.innerProfile&&radial<=state.innerProfile.at(-1).r+.05&&local.y>=state.innerProfile[0].y-.03;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:inside?'inside':(upperCenter?'start':'outside')};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.phase==='glaze'&&state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);return;}
-  if(state.phase!=='form'||!state.pointer||state.pointer.id!==event.pointerId)return;const dx=event.clientX-state.pointer.x,dy=event.clientY-state.pointer.y;if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;if(state.pointer.opening&&dy>0)openClay(dy);else editProfile(state.pointer.index,radial,dy);state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveHands(event.clientX,event.clientY,true);status.textContent=state.pointer.opening&&dy>0?'The center opens under your hands.':Math.abs(dy)>Math.abs(radial)*1.12?(dy<0?'The clay rises under your hand.':'The clay settles and gathers.'):(radial>0?'The wall opens outward.':'The wall comes inward.');
+  if(state.phase!=='form'||!state.pointer||state.pointer.id!==event.pointerId)return;const rawX=event.clientX-state.pointer.x,rawY=event.clientY-state.pointer.y;const dx=THREE.MathUtils.clamp(rawX,-18,18),dy=THREE.MathUtils.clamp(rawY,-18,18);if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;const vertical=Math.abs(dy)>Math.abs(dx)*1.12;
+  if(state.pointer.mode==='start'&&dy>0){openClay(dy*.0017);state.pointer.mode='inside';status.textContent='A small clay floor appears beneath the cursor.';}
+  else if(state.pointer.mode==='inside'){
+    if(dy>0&&Math.abs(dy)>Math.abs(dx)*.72){openClay(dy*.00155);status.textContent='The inner floor deepens, held above the wheel.';}
+    else if(Math.abs(dx)>1){widenInterior(Math.abs(dx)*.0027);status.textContent='The inner floor travels outward; the outside stays steady.';}
+  }
+  else editProfile(state.pointer.index,radial,dy);
+  state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);
 }
 function onUp(event){
   if(state.phase==='glaze'&&state.glaze.pointer?.id===event.pointerId){if(state.glaze.changed){state.glaze.history.push(state.glaze.before);if(state.glaze.history.length>18)state.glaze.history.shift();state.glaze.redo=[];}state.glaze.before=null;state.glaze.pointer=null;return;}
-  if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;hands?.classList.add('is-resting');}
+  if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;contact?.classList.remove('is-active');}
 }
-function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.opening={...snapshot.opening};rebuildMesh();}
-function resetView(){state.yaw=-.08;state.pitch=0;}
+function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;rebuildMesh();}
+function resetView(){state.yaw=-.42;state.pitch=0;}
 function fire(){if(state.phase!=='form')return;state.fired=true;state.phase='fired';surface.classList.add('is-fired');material.color.lerp(new THREE.Color(0x70402f),.18);updateMaterial();status.textContent='Fired. The wheel keeps turning while the surface waits for glaze.';}
 function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
