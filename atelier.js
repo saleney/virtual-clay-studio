@@ -19,7 +19,7 @@ const minGap = .018;
 const state = {
   material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, tool:'hand', slipColor:'cream',
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
-  yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4}, before:null, strokeChanged:false
+  yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, localAlterations:[], before:null, strokeChanged:false
 };
 let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerMesh, lastTime=0;
 
@@ -84,7 +84,7 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
   return {radius:throwingRing+softWobble+slipStreak, moisture};
 }
 function makeClay() {
-  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
+  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.localAlterations=[]; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
   if (clay) wheelGroup.remove(clay); geometry=new THREE.BufferGeometry();
   if (innerMesh) { wheelGroup.remove(innerMesh); innerMesh.geometry.dispose(); innerMesh.material.dispose(); innerMesh=null; }
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
@@ -95,7 +95,7 @@ function makeClay() {
 function rebuildMesh() {
   if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
-  state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const radius=ring.r+detail.radius;vertices.push(Math.cos(a)*radius,ring.y,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
+  state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
   for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=r*segments+s,b=(r+1)*segments+s,c=(r+1)*segments+next,d=r*segments+next;indices.push(a,b,d,b,c,d);}
   const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+.065,0);colors.push(.97,.93,.89);uvs.push(.5,1);
   const hasOpening=Boolean(state.innerProfile?.length);
@@ -105,9 +105,9 @@ function rebuildMesh() {
 }
 function buildInteriorMesh(){
   const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile;
-  for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;vertices.push(Math.cos(a)*top.r,top.y,Math.sin(a)*top.r);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
+  for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a);const radius=Math.max(minRadius,top.r+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
   const innerStart=vertices.length/3;
-  inner.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;vertices.push(Math.cos(a)*ring.r,ring.y,Math.sin(a)*ring.r);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
+  inner.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
   for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=innerStart+r*segments+s,b=innerStart+(r+1)*segments+s,c=innerStart+(r+1)*segments+next,d=innerStart+r*segments+next;indices.push(a,d,b,b,d,c);}
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(floorCenter,innerStart+s,innerStart+next);}
   const innerTop=innerStart+(inner.length-1)*segments;for(let s=0;s<segments;s++){const next=(s+1)%segments;const oa=s,ob=next,ia=innerTop+s,ib=innerTop+next;indices.push(oa,ob,ia,ob,ib,ia);}
@@ -150,7 +150,19 @@ function getHitAt(clientX,clientY){
   return raycaster.intersectObjects(targets,false)[0]||null;
 }
 function getHit(event){return getHitAt(event.clientX,event.clientY);}
-function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth]};}
+function wrappedAngleDistance(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
+function localAlterationAt(y,angle){return state.localAlterations.reduce((total,mark)=>{const height=(y-mark.y)/mark.heightRadius;const arc=wrappedAngleDistance(angle,mark.angle)/mark.angleRadius;const falloff=Math.exp(-.5*(height*height+arc*arc));total.radial+=mark.radialDelta*falloff;total.vertical+=(mark.verticalDelta||0)*falloff;return total;},{radial:0,vertical:0});}
+function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
+  if(!hit||hit.object!==clay||!state.localAlterations.length)return false;
+  const local=wheelGroup.worldToLocal(hit.point.clone());let changed=false;
+  state.localAlterations=state.localAlterations.filter(mark=>{
+    const height=(local.y-mark.y)/heightRadius,arc=wrappedAngleDistance(Math.atan2(local.z,local.x),mark.angle)/angleRadius;const influence=Math.exp(-.5*(height*height+arc*arc));
+    if(influence>.001){const damp=1-strength*influence;mark.radialDelta*=damp;mark.verticalDelta=(mark.verticalDelta||0)*damp;changed=true;}
+    return Math.abs(mark.radialDelta)>=.0015||Math.abs(mark.verticalDelta||0)>=.0015;
+  });
+  if(changed){rebuildMesh();state.strokeChanged=true;}return changed;
+}
+function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth],localAlterations:state.localAlterations.map(mark=>({...mark}))};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
 function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
@@ -193,6 +205,15 @@ function editProfile(index,radial,vertical){
 function moveContact(clientX,clientY,active){
   if(!contact)return;const r=renderer.domElement.getBoundingClientRect();contact.style.left=`${clientX-r.left}px`;contact.style.top=`${clientY-r.top}px`;contact.className=`contact contact--${state.tool}`;contact.classList.toggle('is-active',active);
 }
+function outwardScreenDirection(local,clientX,clientY){
+  const r=renderer.domElement.getBoundingClientRect();const point=wheelGroup.localToWorld(local.clone());const radial=new THREE.Vector3(local.x,0,local.z).normalize().transformDirection(wheelGroup.matrixWorld);const ahead=point.clone().add(radial.multiplyScalar(.22));
+  point.project(camera);ahead.project(camera);let x=(ahead.x-point.x)*r.width*.5,y=-(ahead.y-point.y)*r.height*.5,length=Math.hypot(x,y);
+  // A front-facing wall normal points almost directly at the camera, so it has
+  // no useful screen direction. In that one case, use the visible direction
+  // away from the vessel axis—the same intuitive push/pull cue a potter sees.
+  if(length<5){const axis=wheelGroup.localToWorld(new THREE.Vector3(0,local.y,0)).project(camera);x=clientX-(axis.x+1)*r.width*.5;y=clientY-(-axis.y+1)*r.height*.5;length=Math.hypot(x,y);}
+  length=length||1;return {x:x/length,y:y/length};
+}
 function outerRadiusAt(y){
   for(let i=1;i<state.profile.length;i++){const a=state.profile[i-1],b=state.profile[i];if(y<=b.y){const t=THREE.MathUtils.clamp((y-a.y)/(b.y-a.y),0,1);return THREE.MathUtils.lerp(a.r,b.r,t);}}
   return state.profile.at(-1).r;
@@ -231,26 +252,35 @@ function widenInterior(amount){
 function onDown(event){
   renderer.domElement.focus();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
   if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);return;}
-  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;const inside=state.innerProfile&&radial<=state.innerProfile.at(-1).r+.05&&local.y>=state.innerProfile[0].y-.03;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
+  if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
+  if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
+  if(state.wheel.paused&&state.tool==='hand'&&hit.object===clay&&local.y>state.profile[0].y+.18&&local.y<top-.2){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:local.y,angle:Math.atan2(local.z,local.x),radialDelta:0,heightRadius:.14,angleRadius:.32}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Push inward for a dent, or pull outward for a small bulge.';return;}
+  const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;const inside=state.innerProfile&&radial<=state.innerProfile.at(-1).r+.05&&local.y>=state.innerProfile[0].y-.03;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
   if(!state.pointer){if(event.pointerType==='mouse')moveContact(event.clientX,event.clientY,true);return;}if(state.phase!=='form'||state.pointer.id!==event.pointerId)return;const rawX=event.clientX-state.pointer.x,rawY=event.clientY-state.pointer.y;const dx=THREE.MathUtils.clamp(rawX,-18,18),dy=THREE.MathUtils.clamp(rawY,-18,18);if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;const vertical=Math.abs(dy)>Math.abs(dx)*1.12;
-  if(state.pointer.mode==='sponge'){applySponge(state.pointer.index);softenSlip(getHit(event)?.uv);status.textContent='The sponge settles the clay into a softer curve.';}
+  if(state.pointer.mode==='alter'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const signedDistance=dragX*state.pointer.outward.x+dragY*state.pointer.outward.y;const amount=THREE.MathUtils.clamp(signedDistance*.0019,-.115,.105);if(Math.abs(amount)<.012)return;state.pointer.alteration.radialDelta=amount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=amount<0?'One small dent stays where your hand left it.':'One small outward pull stays where your hand left it.';}
+  else if(state.pointer.mode==='alter-rim'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const mostlyVertical=Math.abs(dragY)>Math.abs(dragX)*1.15,mostlyHorizontal=Math.abs(dragX)>Math.abs(dragY)*1.15;const radialAmount=mostlyVertical?0:THREE.MathUtils.clamp((dragX*state.pointer.outward.x+dragY*state.pointer.outward.y)*.00165,-.085,.085);const verticalAmount=mostlyHorizontal?0:THREE.MathUtils.clamp(-dragY*.00165,-.1,.1);if(Math.max(Math.abs(radialAmount),Math.abs(verticalAmount))<.01)return;state.pointer.alteration.radialDelta=radialAmount;state.pointer.alteration.verticalDelta=verticalAmount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=mostlyVertical?(verticalAmount>0?'One rim section lifts softly.':'One rim section settles softly.'):(radialAmount>0?'One rim section flares outward.':'One rim section tucks inward.');}
+  else if(state.pointer.mode==='sponge'){applySponge(state.pointer.index);softenSlip(getHit(event)?.uv);status.textContent='The sponge settles the clay into a softer curve.';}
   else if(state.pointer.mode==='carve'){applyCarve(state.pointer.index);carveSlip(getHit(event)?.uv);status.textContent='A small groove gathers beneath the carving tool.';}
   else if(state.pointer.mode==='start'&&dy>0){openClay(dy*.0017);state.pointer.mode='inside';status.textContent='A small clay floor appears beneath the cursor.';}
   else if(state.pointer.mode==='inside'){
     if(dy>0&&Math.abs(dy)>Math.abs(dx)*.72){openClay(dy*.00155);status.textContent='The inner floor deepens, held above the wheel.';}
     else if(Math.abs(dx)>1){widenInterior(Math.abs(dx)*.0027);status.textContent='The inner floor travels outward; the outside stays steady.';}
   }
-  else { editProfile(state.pointer.index,radial,dy); if(state.tool==='rib') { smoothProfileRadius(state.pointer.index,18,4); stabilizeProfile(); rebuildMesh(); } }
+  else {
+    editProfile(state.pointer.index,radial,dy);
+    if(!state.wheel.paused&&state.tool==='hand'&&restoreTowardSymmetry(getHit(event),.07,.28,.58))status.textContent='Your hands gently work this part back toward center.';
+    if(state.tool==='rib') { smoothProfileRadius(state.pointer.index,18,4); stabilizeProfile(); rebuildMesh(); if(!state.wheel.paused&&restoreTowardSymmetry(getHit(event),.18,.34,.7))status.textContent='The rib steadily brings this part back toward center.'; }
+  }
   state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);
 }
 function onUp(event){
   if(state.glaze.pointer?.id===event.pointerId){if(state.glaze.changed){state.glaze.history.push(state.glaze.before);if(state.glaze.history.length>18)state.glaze.history.shift();state.glaze.redo=[];}state.glaze.before=null;state.glaze.pointer=null;return;}
   if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;contact?.classList.remove('is-active');}
 }
-function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);rebuildMesh();}
+function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
 function resetView(){state.yaw=-.42;state.pitch=0;}
 function fire(){if(state.phase!=='form')return;state.fired=true;state.phase='fired';surface.classList.add('is-fired');material.color.lerp(new THREE.Color(0x70402f),.18);updateMaterial();status.textContent='Fired. The wheel keeps turning while the surface waits for glaze.';}
 function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
@@ -258,4 +288,19 @@ function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
 function selectTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.'}[tool];}
 function selectSlipColor(color){state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
-function bind(){renderer.domElement.addEventListener('pointerdown',onDown);renderer.domElement.addEventListener('pointermove',onMove);renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active'));renderer.domElement.addEventListener('pointerup',onUp);renderer.domElement.addEventListener('pointercancel',onUp);renderer.domElement.addEventListener('keydown',keyboardShape);document.querySelectorAll('[data-undo]').forEach(button=>button.addEventListener('click',undo));document.querySelectorAll('[data-redo]').forEach(button=>button.addEventListener('click',redo));document.querySelectorAll('[data-tool]').forEach(button=>button.addEventListener('click',()=>selectTool(button.dataset.tool)));document.querySelectorAll('[data-slip-color]').forEach(button=>button.addEventListener('click',()=>selectSlipColor(button.dataset.slipColor)));const wheelSpeed=document.querySelector('[data-wheel-speed]'),wheelSpeedValue=document.querySelector('[data-wheel-speed-value]');if(wheelSpeed&&wheelSpeedValue){wheelSpeed.value=state.wheel.target;wheelSpeedValue.textContent=Number(state.wheel.target).toFixed(1);wheelSpeed.addEventListener('input',()=>{state.wheel.target=Number(wheelSpeed.value);wheelSpeedValue.textContent=Number(wheelSpeed.value).toFixed(1);status.textContent=state.wheel.target===0?'The wheel comes to rest.':`Wheel speed: ${Number(state.wheel.target).toFixed(1)}.`;});}document.querySelector('[data-fire]')?.addEventListener('click',fire);document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze);document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));}
+function bind(){
+  renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointermove',onMove); renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active')); renderer.domElement.addEventListener('pointerup',onUp); renderer.domElement.addEventListener('pointercancel',onUp); renderer.domElement.addEventListener('keydown',keyboardShape);
+  document.querySelectorAll('[data-undo]').forEach(button=>button.addEventListener('click',undo)); document.querySelectorAll('[data-redo]').forEach(button=>button.addEventListener('click',redo)); document.querySelectorAll('[data-tool]').forEach(button=>button.addEventListener('click',()=>selectTool(button.dataset.tool))); document.querySelectorAll('[data-slip-color]').forEach(button=>button.addEventListener('click',()=>selectSlipColor(button.dataset.slipColor)));
+  const wheelSpeed=document.querySelector('[data-wheel-speed]'), wheelSpeedValue=document.querySelector('[data-wheel-speed-value]'), wheelToggle=document.querySelector('[data-wheel-toggle]');
+  if(wheelSpeed&&wheelSpeedValue){
+    wheelSpeed.value=state.wheel.target; wheelSpeedValue.textContent=Number(state.wheel.target).toFixed(1);
+    wheelSpeed.addEventListener('input',()=>{const speed=Number(wheelSpeed.value);state.wheel.resumeTarget=speed;if(!state.wheel.paused)state.wheel.target=speed;wheelSpeedValue.textContent=speed.toFixed(1);status.textContent=state.wheel.paused?'The wheel is paused; its next speed is set.':speed===0?'The wheel comes to rest.':`Wheel speed: ${speed.toFixed(1)}.`;});
+  }
+  wheelToggle?.addEventListener('click',()=>{
+    state.wheel.paused=!state.wheel.paused;
+    if(state.wheel.paused){state.wheel.resumeTarget=state.wheel.target;state.wheel.target=0;state.wheel.speed=0;wheelToggle.textContent='Resume wheel';wheelToggle.setAttribute('aria-pressed','true');status.textContent='The wheel rests. Press and drag one outer spot to leave a small dent.';}
+    else {state.wheel.target=state.wheel.resumeTarget;wheelToggle.textContent='Pause wheel';wheelToggle.setAttribute('aria-pressed','false');status.textContent='The wheel turns again; the dent travels with the clay.';}
+  });
+  document.querySelector('[data-fire]')?.addEventListener('click',fire); document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze); document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});
+  document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
+}
