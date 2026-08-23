@@ -124,7 +124,7 @@ function makeGlazeLayer() {
 function snapshotGlaze(){return glazeContext.getImageData(0,0,glazeCanvas.width,glazeCanvas.height);}
 function restoreGlaze(snapshot){glazeContext.putImageData(snapshot,0,0);glazeTexture.needsUpdate=true;}
 function paintGlaze(uv,speed=0){
-  if(!uv||!glazeContext)return; const colors={cream:[222,209,184],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]};const [red,green,blue]=colors[state.slipColor];const size=glazeCanvas.width; const x=uv.x*size; const y=(1-uv.y)*size; const radius=mobile?14:20; const alpha=Math.max(.009,.027/(1+speed*.055));
+  if(!uv||!glazeContext)return; const colors={cream:[198,177,142],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]};const [red,green,blue]=colors[state.slipColor];const size=glazeCanvas.width; const x=uv.x*size; const y=(1-uv.y)*size; const radius=mobile?14:20; const alpha=Math.max(.018,.05/(1+speed*.055));
   [-size,0,size].forEach(offset=>{const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);gradient.addColorStop(0,`rgba(${red}, ${green}, ${blue}, ${alpha})`);gradient.addColorStop(.3,`rgba(${red}, ${green}, ${blue}, ${alpha*.62})`);gradient.addColorStop(.72,`rgba(${red}, ${green}, ${blue}, ${alpha*.14})`);gradient.addColorStop(1,`rgba(${red}, ${green}, ${blue}, 0)`);glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();});
   glazeTexture.needsUpdate=true;state.glaze.changed=true;
 }
