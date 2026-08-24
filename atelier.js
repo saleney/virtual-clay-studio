@@ -19,7 +19,7 @@ const minGap = .018;
 const state = {
   material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, tool:'hand', slipColor:'cream',
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
-  yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, localAlterations:[], before:null, strokeChanged:false
+  yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, topDome:.065, localAlterations:[], before:null, strokeChanged:false
 };
 let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerMesh, lastTime=0;
 
@@ -84,7 +84,7 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
   return {radius:throwingRing+softWobble+slipStreak, moisture};
 }
 function makeClay() {
-  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.localAlterations=[]; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
+  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.topDome=.065; state.localAlterations=[]; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-glazing');
   if (clay) wheelGroup.remove(clay); geometry=new THREE.BufferGeometry();
   if (innerMesh) { wheelGroup.remove(innerMesh); innerMesh.geometry.dispose(); innerMesh.material.dispose(); innerMesh=null; }
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
@@ -97,7 +97,7 @@ function rebuildMesh() {
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
   state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
   for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=r*segments+s,b=(r+1)*segments+s,c=(r+1)*segments+next,d=r*segments+next;indices.push(a,b,d,b,c,d);}
-  const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+.065,0);colors.push(.97,.93,.89);uvs.push(.5,1);
+  const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+state.topDome,0);colors.push(.97,.93,.89);uvs.push(.5,1);
   const hasOpening=Boolean(state.innerProfile?.length);
   for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);if(!hasOpening){const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,b,a);}}
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
@@ -112,7 +112,10 @@ function buildInteriorMesh(){
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(floorCenter,innerStart+s,innerStart+next);}
   const innerTop=innerStart+(inner.length-1)*segments;for(let s=0;s<segments;s++){const next=(s+1)%segments;const oa=s,ob=next,ia=innerTop+s,ib=innerTop+next;indices.push(oa,ob,ia,ob,ib,ia);}
   const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();
-  const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;innerMesh=new THREE.Mesh(innerGeometry,innerMaterial);innerMesh.castShadow=true;innerMesh.receiveShadow=true;wheelGroup.add(innerMesh);
+  const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;
+  // A tiny warm bounce-light lift keeps the real clay floor readable under its rim.
+  innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;
+  innerMesh=new THREE.Mesh(innerGeometry,innerMaterial);innerMesh.castShadow=true;innerMesh.receiveShadow=true;wheelGroup.add(innerMesh);
 }
 function updateMaterial() { const sample=materials[state.material]; material.color.setHex(sample.color); material.roughness=state.fired?Math.max(.3,sample.roughness-.18):sample.roughness; material.metalness=0; material.clearcoat=state.fired?.1:.012; material.clearcoatRoughness=state.fired?.42:.82; material.needsUpdate=true; }
 function makeGlazeLayer() {
@@ -162,7 +165,7 @@ function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
   });
   if(changed){rebuildMesh();state.strokeChanged=true;}return changed;
 }
-function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth],localAlterations:state.localAlterations.map(mark=>({...mark}))};}
+function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth],topDome:state.topDome,localAlterations:state.localAlterations.map(mark=>({...mark}))};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
 function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
@@ -193,7 +196,14 @@ function applyHeight(index,amount){
   state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>19)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.y+=limited*falloff;});
   stabilizeProfile();
 }
-function applySponge(index){state.surfaceSmooth.forEach((amount,i)=>{const d=i-index;if(Math.abs(d)>10)return;const falloff=Math.exp(-(d*d)/(2*4.5*4.5));state.surfaceSmooth[i]=THREE.MathUtils.clamp(amount+.075*falloff,0,1);});smoothProfileRadius(index,5,1);stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
+function applySponge(index){
+  state.surfaceSmooth.forEach((amount,i)=>{const d=i-index;if(Math.abs(d)>10)return;const falloff=Math.exp(-(d*d)/(2*4.5*4.5));state.surfaceSmooth[i]=THREE.MathUtils.clamp(amount+.075*falloff,0,1);});
+  // On solid clay, repeated top sponge passes gently round the cap into a mound.
+  // Once opened, this remains ordinary rim/surface smoothing and never fills it.
+  if(!state.innerProfile&&index>=ringCount-7){state.topDome=THREE.MathUtils.clamp(state.topDome+.012,.065,.18);smoothProfileRadius(ringCount-1,9,2);}
+  else smoothProfileRadius(index,5,1);
+  stabilizeProfile();rebuildMesh();state.strokeChanged=true;
+}
 function applyCarve(index){state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>3)return;const falloff=Math.exp(-(d*d)/(2*1.15*1.15));ring.r=THREE.MathUtils.clamp(ring.r-.014*falloff,minRadius,1.42);});stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
 function editProfile(index,radial,vertical){
   // The vessel spins in world space, but its profile remains axisymmetric. Screen motion is
@@ -219,7 +229,7 @@ function outerRadiusAt(y){
   return state.profile.at(-1).r;
 }
 function setInterior(depth,radius){
-  const top=state.profile.at(-1).y;const floorY=THREE.MathUtils.clamp(top-depth,state.profile[0].y+.22,top-.025);const outerAtFloor=outerRadiusAt(floorY);const maxRadius=Math.max(.035,Math.min(outerAtFloor-.16,state.profile.at(-1).r-.12));const rimRadius=THREE.MathUtils.clamp(radius,.025,maxRadius);const floorRadius=Math.max(.018,rimRadius*.58);const lift=top-floorY;
+  const top=state.profile.at(-1).y;const floorY=THREE.MathUtils.clamp(top-depth,state.profile[0].y+.22,top-.025);const outerAtFloor=outerRadiusAt(floorY);const maxRadius=Math.max(.035,Math.min(outerAtFloor-.16,state.profile.at(-1).r-.12));const rimRadius=THREE.MathUtils.clamp(radius,.08,maxRadius);const floorRadius=Math.max(.035,rimRadius*.58);const lift=top-floorY;
   const innerRings=9;
   state.innerProfile=Array.from({length:innerRings},(_,index)=>{
     const t=index/(innerRings-1), eased=t*t*(3-2*t);
@@ -229,7 +239,11 @@ function setInterior(depth,radius){
 }
 function interiorInfo(){if(!state.innerProfile)return null;const floor=state.innerProfile[0],rim=state.innerProfile.at(-1);return {depth:state.profile.at(-1).y-floor.y,radius:rim.r,floorY:floor.y};}
 function openClay(depthDelta,radiusDelta=0){
-  const current=interiorInfo();const depthBase=current?.depth||.01;const radiusBase=current?.radius||.055;setInterior(THREE.MathUtils.clamp(depthBase+depthDelta,.028,.62),THREE.MathUtils.clamp(radiusBase+radiusDelta,.04,.58));
+  const current=interiorInfo();
+  // The first press makes a small, visible well—not a preset bowl. A readable
+  // target lets the next outward pull continue the same clay action.
+  const depthBase=current?.depth||.07;const radiusBase=current?.radius||.14;
+  setInterior(THREE.MathUtils.clamp(depthBase+depthDelta,.052,.62),THREE.MathUtils.clamp(radiusBase+radiusDelta,.08,.58));
 }
 function widenInterior(amount){
   if(!state.innerProfile)return;
@@ -255,7 +269,10 @@ function onDown(event){
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
   if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
   if(state.wheel.paused&&state.tool==='hand'&&hit.object===clay&&local.y>state.profile[0].y+.18&&local.y<top-.2){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:local.y,angle:Math.atan2(local.z,local.x),radialDelta:0,heightRadius:.14,angleRadius:.32}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Push inward for a dent, or pull outward for a small bulge.';return;}
-  const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;const inside=state.innerProfile&&radial<=state.innerProfile.at(-1).r+.05&&local.y>=state.innerProfile[0].y-.03;state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
+  const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
+  // Keep the newly opened interior forgivingly tappable from this elevated view.
+  const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
@@ -280,7 +297,7 @@ function onUp(event){
   if(state.glaze.pointer?.id===event.pointerId){if(state.glaze.changed){state.glaze.history.push(state.glaze.before);if(state.glaze.history.length>18)state.glaze.history.shift();state.glaze.redo=[];}state.glaze.before=null;state.glaze.pointer=null;return;}
   if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;contact?.classList.remove('is-active');}
 }
-function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
+function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.topDome=snapshot.topDome??.065;state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
 function resetView(){state.yaw=-.42;state.pitch=0;}
 function fire(){if(state.phase!=='form')return;state.fired=true;state.phase='fired';surface.classList.add('is-fired');material.color.lerp(new THREE.Color(0x70402f),.18);updateMaterial();status.textContent='Fired. The wheel keeps turning while the surface waits for glaze.';}
 function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
