@@ -118,7 +118,7 @@ function buildInteriorMesh(){
   innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;
   innerMesh=new THREE.Mesh(innerGeometry,innerMaterial);innerMesh.castShadow=true;innerMesh.receiveShadow=true;wheelGroup.add(innerMesh);
 }
-function updateMaterial() { const sample=materials[state.material]; material.color.setHex(sample.color); material.roughness=state.fired?Math.max(.3,sample.roughness-.18):sample.roughness; material.metalness=0; material.clearcoat=state.fired?.1:.012; material.clearcoatRoughness=state.fired?.42:.82; material.needsUpdate=true; }
+function updateMaterial() { const sample=materials[state.material]; const color=new THREE.Color(sample.color);if(state.fired)color.lerp(new THREE.Color(0x70402f),.2);material.color.copy(color);material.roughness=state.fired?Math.max(.3,sample.roughness-.2):sample.roughness;material.metalness=0;material.clearcoat=state.fired?.14:.012;material.clearcoatRoughness=state.fired?.38:.82;material.needsUpdate=true; }
 function makeGlazeLayer() {
   const size=mobile?256:512; glazeCanvas=document.createElement('canvas'); glazeCanvas.width=glazeCanvas.height=size; glazeContext=glazeCanvas.getContext('2d');
   glazeTexture=new THREE.CanvasTexture(glazeCanvas); glazeTexture.colorSpace=THREE.SRGBColorSpace; glazeTexture.wrapS=THREE.RepeatWrapping; glazeTexture.wrapT=THREE.ClampToEdgeWrapping;
@@ -301,7 +301,11 @@ function onUp(event){
 }
 function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.topDome=snapshot.topDome??.065;state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
 function resetView(){state.yaw=-.42;state.pitch=0;}
-function fire(){if(state.phase!=='form')return;state.fired=true;state.phase='fired';surface.classList.add('is-fired');material.color.lerp(new THREE.Color(0x70402f),.18);updateMaterial();status.textContent='Fired. The wheel keeps turning while the surface waits for glaze.';}
+function fire(){
+  if(state.phase!=='form')return;completeFirstInvite();state.phase='firing';state.wheel.resumeTarget=state.wheel.target;state.wheel.target=Math.min(state.wheel.target,.75);surface.classList.add('is-firing');status.textContent='The small kiln warms the piece.';
+  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  setTimeout(()=>{state.fired=true;state.phase='fired';surface.classList.remove('is-firing');surface.classList.add('is-fired');updateMaterial();status.textContent='Fired. The ceramic is ready for glaze.';},reduced?350:1450);
+}
 function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
