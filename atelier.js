@@ -7,9 +7,6 @@ const stageNote = document.querySelector('[data-stage-note]');
 const caption = document.querySelector('[data-caption]');
 const fallback = document.querySelector('[data-fallback]');
 const contact = document.querySelector('[data-contact]');
-const savedShelf = document.querySelector('[data-saved-shelf]');
-const savedToast = document.querySelector('[data-saved-toast]');
-const STORAGE_KEY = 'virtual-clay-studio-pieces-v1';
 const materials = {
   terracotta:{color:0x958675,roughness:.72,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
   stoneware:{color:0x807667,roughness:.58,metalness:0}, red:{color:0x904332,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
@@ -44,7 +41,7 @@ function init() {
   const ring=new THREE.Mesh(new THREE.TorusGeometry(1.8,.032,10,80),new THREE.MeshStandardMaterial({color:0x39322f,roughness:.86})); ring.rotation.x=Math.PI/2; ring.position.y=-1.44; wheelGroup.add(ring);
   const wheelContact=new THREE.Mesh(new THREE.CircleGeometry(1.15,48),new THREE.MeshBasicMaterial({color:0x241914,transparent:true,opacity:.18,depthWrite:false})); wheelContact.rotation.x=-Math.PI/2; wheelContact.position.y=-1.457; wheelGroup.add(wheelContact);
   clayMaps=makeClayMaps();
-  makeClay(); renderSavedShelf(); window.addEventListener('resize',resize); resize(); bind(); requestAnimationFrame(render);
+  makeClay(); window.addEventListener('resize',resize); resize(); bind(); requestAnimationFrame(render);
 }
 
 function initialProfile() {
@@ -129,33 +126,6 @@ function makeGlazeLayer() {
 }
 function snapshotGlaze(){return glazeContext.getImageData(0,0,glazeCanvas.width,glazeCanvas.height);}
 function restoreGlaze(snapshot){glazeContext.putImageData(snapshot,0,0);glazeTexture.needsUpdate=true;}
-function readSavedPieces(){
-  try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]').filter(piece=>piece?.profile?.rings?.length).slice(0,6);}catch{return [];}
-}
-function pieceThumbnail(piece){
-  const canvas=document.createElement('canvas');canvas.width=120;canvas.height=150;const ctx=canvas.getContext('2d');
-  const rings=piece.profile.rings,minY=rings[0].y,maxY=rings.at(-1).y+.08,maxR=Math.max(...rings.map(r=>r.r)),cx=60;
-  const xScale=46/maxR,yScale=112/(maxY-minY);ctx.beginPath();
-  rings.forEach((ring,index)=>{const x=cx-ring.r*xScale,y=132-(ring.y-minY)*yScale;index?ctx.lineTo(x,y):ctx.moveTo(x,y);});
-  for(let i=rings.length-1;i>=0;i--){const ring=rings[i];ctx.lineTo(cx+ring.r*xScale,132-(ring.y-minY)*yScale);}ctx.closePath();
-  const gradient=ctx.createLinearGradient(16,0,104,0);gradient.addColorStop(0,'#5b4638');gradient.addColorStop(.28,'#b39b82');gradient.addColorStop(.58,'#8d7561');gradient.addColorStop(1,'#49372f');ctx.fillStyle=gradient;ctx.fill();
-  if(piece.profile.innerProfile){const rim=rings.at(-1),outer=rim.r*xScale,inner=piece.profile.innerProfile.at(-1).r*xScale,y=132-(rim.y-minY)*yScale;ctx.beginPath();ctx.ellipse(cx,y,outer,Math.max(3,outer*.18),0,0,Math.PI*2);ctx.fillStyle='#b9a48b';ctx.fill();ctx.beginPath();ctx.ellipse(cx,y,inner,Math.max(2,inner*.18),0,0,Math.PI*2);ctx.fillStyle='#3b2d26';ctx.fill();}
-  ctx.beginPath();ctx.ellipse(cx,136,45,5,0,0,Math.PI*2);ctx.fillStyle='rgba(34,22,15,.22)';ctx.fill();return canvas.toDataURL('image/png');
-}
-function renderSavedShelf(){
-  if(!savedShelf)return;savedShelf.replaceChildren();readSavedPieces().forEach((piece,index)=>{const button=document.createElement('button'),image=document.createElement('img');button.type='button';button.className='saved-piece';button.setAttribute('aria-label',`Return ${piece.name||`saved piece ${index+1}`} to the wheel`);button.title=piece.name||`Saved piece ${index+1}`;image.src=piece.thumbnail||pieceThumbnail(piece);image.alt='';button.append(image);button.addEventListener('click',()=>restoreSavedPiece(piece));savedShelf.append(button);});
-}
-function announceSaved(message){if(!savedToast)return;savedToast.textContent=message;savedToast.classList.add('is-visible');clearTimeout(announceSaved.timer);announceSaved.timer=setTimeout(()=>savedToast.classList.remove('is-visible'),2200);}
-function keepCurrentPiece(){
-  const pieces=readSavedPieces(),number=pieces.length+1,profile=cloneProfile();
-  const piece={id:`piece-${Date.now()}`,name:`Atelier piece ${number}`,createdAt:new Date().toISOString(),profile,material:state.material,fired:state.fired,phase:state.phase,glaze:glazeCanvas?.toDataURL('image/png')||null};piece.thumbnail=pieceThumbnail(piece);
-  pieces.unshift(piece);try{localStorage.setItem(STORAGE_KEY,JSON.stringify(pieces.slice(0,6)));renderSavedShelf();announceSaved('Your piece is resting on the shelf');status.textContent='Kept. Your piece will still be here when you return.';}catch{status.textContent='This browser could not save the piece. Try freeing some site storage.';}
-}
-function restoreSavedPiece(piece){
-  makeClay();state.profile=piece.profile.rings.map(r=>({...r}));state.innerProfile=piece.profile.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=[...piece.profile.surfaceSmooth];state.topDome=piece.profile.topDome;state.localAlterations=piece.profile.localAlterations.map(mark=>({...mark}));state.material=piece.material||'terracotta';state.fired=Boolean(piece.fired);state.phase=piece.phase||'glaze';rebuildMesh();updateMaterial();surface.classList.toggle('is-fired',state.fired);surface.classList.toggle('is-glazing',state.phase==='glaze');
-  if(piece.glaze){const image=new Image();image.onload=()=>{glazeContext.clearRect(0,0,glazeCanvas.width,glazeCanvas.height);glazeContext.drawImage(image,0,0,glazeCanvas.width,glazeCanvas.height);glazeTexture.needsUpdate=true;};image.src=piece.glaze;}
-  stageNote.textContent=state.phase==='glaze'?'touch the turning ceramic':'touch the spinning clay';status.textContent=`${piece.name||'Your saved piece'} returned to the wheel.`;announceSaved('Returned from your shelf');
-}
 function paintGlaze(uv,speed=0){
   if(!uv||!glazeContext)return; const clayHex=materials[state.material].color;const colors={clay:[clayHex>>16&255,clayHex>>8&255,clayHex&255],cream:[198,177,142],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]};const [red,green,blue]=colors[state.slipColor];const size=glazeCanvas.width; const x=uv.x*size; const y=(1-uv.y)*size; const radius=mobile?14:20; const alpha=Math.max(.018,.05/(1+speed*.055));
   [-size,0,size].forEach(offset=>{const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);gradient.addColorStop(0,`rgba(${red}, ${green}, ${blue}, ${alpha})`);gradient.addColorStop(.3,`rgba(${red}, ${green}, ${blue}, ${alpha*.62})`);gradient.addColorStop(.72,`rgba(${red}, ${green}, ${blue}, ${alpha*.14})`);gradient.addColorStop(1,`rgba(${red}, ${green}, ${blue}, 0)`);glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();});
@@ -349,6 +319,5 @@ function bind(){
     else {state.wheel.target=state.wheel.resumeTarget;wheelToggle.textContent='Pause wheel';wheelToggle.setAttribute('aria-pressed','false');status.textContent='The wheel turns again; the dent travels with the clay.';}
   });
   document.querySelector('[data-fire]')?.addEventListener('click',fire); document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze); document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});
-  document.querySelector('[data-keep]')?.addEventListener('click',keepCurrentPiece);
   document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
 }
