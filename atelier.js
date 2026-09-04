@@ -98,22 +98,25 @@ function rebuildMesh() {
   if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
   if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
-  state.profile.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
-  for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=r*segments+s,b=(r+1)*segments+s,c=(r+1)*segments+next,d=r*segments+next;indices.push(a,b,d,b,c,d);}
+  // Duplicate the first column at U=1. Each side of the texture join can then
+  // sample its own edge instead of interpolating all the way across the canvas.
+  const stride=segments+1;
+  state.profile.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s===segments?0:s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1));}});
+  for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const a=r*stride+s,b=(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,b,d,b,c,d);}
   const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+state.topDome,0);colors.push(.97,.93,.89);uvs.push(.5,1);
   const hasOpening=Boolean(state.innerProfile?.length);
-  for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(bottomIndex,next,s);if(!hasOpening){const a=(ringCount-1)*segments+s,b=(ringCount-1)*segments+next;indices.push(topIndex,b,a);}}
+  for(let s=0;s<segments;s++){indices.push(bottomIndex,s+1,s);if(!hasOpening){const a=(ringCount-1)*stride+s,b=a+1;indices.push(topIndex,b,a);}}
   geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
   if(hasOpening)buildInteriorMesh();
 }
 function buildInteriorMesh(){
-  const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile;
-  for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a);const radius=Math.max(minRadius,top.r+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
+  const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile,stride=segments+1;
+  for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a);const radius=Math.max(minRadius,top.r+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
   const innerStart=vertices.length/3;
-  inner.forEach((ring,r)=>{for(let s=0;s<segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
-  for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const next=(s+1)%segments;const a=innerStart+r*segments+s,b=innerStart+(r+1)*segments+s,c=innerStart+(r+1)*segments+next,d=innerStart+r*segments+next;indices.push(a,d,b,b,d,c);}
-  const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++){const next=(s+1)%segments;indices.push(floorCenter,innerStart+s,innerStart+next);}
-  const innerTop=innerStart+(inner.length-1)*segments;for(let s=0;s<segments;s++){const next=(s+1)%segments;const oa=s,ob=next,ia=innerTop+s,ib=innerTop+next;indices.push(oa,ob,ia,ob,ib,ia);}
+  inner.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
+  for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const a=innerStart+r*stride+s,b=innerStart+(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,d,b,b,d,c);}
+  const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++)indices.push(floorCenter,innerStart+s,innerStart+s+1);
+  const innerTop=innerStart+(inner.length-1)*stride;for(let s=0;s<segments;s++){const oa=s,ob=s+1,ia=innerTop+s,ib=innerTop+s+1;indices.push(oa,ob,ia,ob,ib,ia);}
   const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();
   const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;
   // A tiny warm bounce-light lift keeps the real clay floor readable under its rim.
