@@ -55,3 +55,40 @@ These screenshots were rendered from detached temporary Git worktrees at a consi
 - **What changed:** Merged the Phase 3 local-alteration work into `main` without additional product changes beyond the merged feature set.
 - **Screenshot demonstrates:** The final merged studio with the wheel paused and a localized hand-made dent retained on the vessel.
 - **Limitations / caveats:** As in the Phase 3 feature commit, localized deformation is intentionally gentle and appears subtler in a still image than while rotating interactively.
+
+## 7. Refined clay opening
+
+- **Commit:** `f5e9c43`
+- **Message:** Improve clay opening and top rounding
+- **Date:** 2026-09-03
+- **What changed:** Refined the first downward opening gesture, stabilized the inner clay floor, and softened the closed top so the transition from a lump to a vessel reads more naturally.
+- **Screenshot demonstrates:** A formed vessel with an actual interior rather than a dark visual indentation painted over a solid form.
+- **Limitations / caveats:** The opening remains intentionally forgiving and simplified. It models a radial interior rather than full particle-based clay physics.
+
+## 8. Atelier cleanup
+
+- **Commit:** `0105563`
+- **Message:** Refine atelier background
+- **Date:** 2026-09-03
+- **What changed:** Reworked the generated background plate to clarify shelf construction, ceramic silhouettes, containers, and foreground pottery tools while retaining the fixed camera, daylight, plants, and quiet Reggio-inspired atmosphere.
+- **Screenshot demonstrates:** A more physically coherent room whose shelf edges and open spaces can support saved virtual vessels.
+- **Decision:** The earlier background remains in the repository as a rollback asset. Refinement was chosen over replacing the atelier's visual identity.
+- **Limitations / caveats:** The room is still a flat photographic plate. Future shelf pieces therefore need carefully matched placement, scale, light, and contact shadows.
+
+## 9. Mobile foundation
+
+- **Commit:** `6e99281`
+- **Message:** Add iOS and Android app wrappers
+- **Date:** 2026-09-03
+- **What changed:** Added Capacitor-based iOS and Android projects, safe-area behavior, mobile metadata, and a locally bundled Three.js module for offline use.
+- **Decision:** Preserve the functioning WebGL studio inside native app shells instead of immediately rewriting the interface and 3D system separately in SwiftUI and Kotlin.
+- **Evidence:** Both native projects receive the same validated web bundle through one repeatable synchronization step.
+- **Limitations / caveats:** This is a native-distributable wrapper, not a SwiftUI rewrite. Physical-device, signing, TestFlight, and Play Store testing remain future work.
+
+## 10. The first kept piece
+
+- **What changed:** Added local creation saving, restoration after reload, a six-piece collection limit, generated silhouette thumbnails, and an interactive shelf presentation. Restored the missing visible `Fire it` action and repaired the fired/glazing control transition.
+- **Product decision:** Saving begins as private device-local storage. It does not require an account, transmit creations, or imply cloud synchronization.
+- **Test evidence:** A piece was fired, entered glazing, saved to the shelf, and remained present after a full browser reload. Selecting a shelf piece restores its profile, interior, alterations, material, fired phase, and saved glaze texture.
+- **Limitations / caveats:** The shelf representation is a lightweight profile thumbnail rather than a second live Three.js scene. Saved pieces remain only in the current browser or app installation and can be removed by clearing site data.
+- **Next question:** Does seeing a personal piece on the shelf create enough attachment that visitors want to make a second one?
