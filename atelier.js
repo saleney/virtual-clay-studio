@@ -7,6 +7,7 @@ const stageNote = document.querySelector('[data-stage-note]');
 const caption = document.querySelector('[data-caption]');
 const fallback = document.querySelector('[data-fallback]');
 const contact = document.querySelector('[data-contact]');
+const firstInvite = document.querySelector('[data-first-invite]');
 const materials = {
   terracotta:{color:0x958675,roughness:.72,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
   stoneware:{color:0x807667,roughness:.58,metalness:0}, red:{color:0x904332,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
@@ -167,7 +168,8 @@ function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
 }
 function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth],topDome:state.topDome,localAlterations:state.localAlterations.map(mark=>({...mark}))};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
-function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];}state.before=null;}
+function completeFirstInvite(){if(!firstInvite||firstInvite.classList.contains('is-complete'))return;firstInvite.classList.add('is-complete');firstInvite.setAttribute('aria-hidden','true');}
+function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];completeFirstInvite();}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
 function stabilizeProfile(){
   const baseY=-1.43; const maxTop=1.03; const maxSlope=.038; const maxGap=.052;
