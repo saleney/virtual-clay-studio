@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#100d0a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="description" content="A quiet, hands-on place to throw a small piece of virtual clay." />
     <title>Virtual Clay Studio</title>
     <style>
@@ -17,6 +20,7 @@
       @media (max-width:620px) { .work-surface { background-position:58% center; }.controls { right:12px; bottom:max(10px,env(safe-area-inset-bottom)); left:12px; display:grid; grid-template-columns:1fr; justify-items:start; gap:2px; }.action-row { gap:8px; justify-content:flex-end; }.action { min-height:44px; font-size:9px; }.slip-tray { top:calc(max(11px,env(safe-area-inset-top)) + 54px); right:12px; gap:5px; }.salene-home-link { top:max(11px,env(safe-area-inset-top)); bottom:auto; left:12px; }.tool { padding:0 7px; font-size:8px; } }
       @media (prefers-reduced-motion:reduce) { .action { transition:none; }.action:hover { transform:none; } }
     </style>
+    <style>.studio{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}</style>
   </head>
   <body>
     <main class="studio">
