@@ -31,6 +31,25 @@
       @media(max-width:620px){.first-invite{top:27%;font-size:9px}.controls{padding:6px;background:linear-gradient(90deg,rgba(21,15,12,.5),rgba(21,15,12,.18));border-radius:3px}.action{font-size:9px}.speed-control{padding-inline:7px}}
       @media(prefers-reduced-motion:reduce){.first-invite{transition:none}.work-surface.is-firing .kiln-wash,.work-surface.is-firing .kiln-wash span{animation-duration:.5s}}
     </style>
+    <style>
+      /* Object-study edition: a paper tool bench around the existing clay scene. */
+      :root{--ink:#252622;--focus:#98553d;--pencil:#74695f}
+      .controls{opacity:1;background:#f0efeb;padding:8px 14px;border-top:1px solid #a69b8f;border-radius:0}
+      .action,.speed-control,.glaze-size{color:var(--ink);background:transparent;text-shadow:none;border-radius:0;font-weight:400}
+      .action:hover,.action:focus-visible{color:#98553d;background:#e6e0d5}
+      .action--fire{border:1px solid #98553d;color:#98553d}
+      .speed-readout,.glaze-size output{color:var(--ink)}
+      .speed-control input,.glaze-size input{accent-color:#98553d}
+      .salene-home-link{padding:0 12px;background:#f0efeb;color:#252622;text-shadow:none;font-weight:400;letter-spacing:.02em;text-transform:none;border-bottom:1px solid #a69b8f}
+      .salene-home-link:hover,.salene-home-link:focus-visible{color:#98553d}
+      .slip-tray,.glaze-tray{padding:8px;background:#f0efeb;color:#252622;text-shadow:none;border-top:1px solid #a69b8f}
+      .tool{background:transparent;color:#252622;border-color:#bdb5a8;font-weight:400}
+      .tool[aria-pressed="true"]{background:#98553d;color:#fff8ef;border-color:#98553d;box-shadow:none}
+      .slip-color[aria-pressed="true"],.glaze-color[aria-pressed="true"]{outline:2px solid #98553d;outline-offset:2px;box-shadow:none}
+      .first-invite{background:#f0efeb;color:#252622;border:0;border-bottom:1px solid #98553d;text-shadow:none;font-weight:400;letter-spacing:.08em}
+      .studio::after{content:"OBJECT STUDY / DIGITAL CLAY";position:absolute;top:78px;left:20px;z-index:3;color:#f0efeb;font:10px/1.4 ui-monospace,monospace;letter-spacing:.08em;pointer-events:none}
+      @media(max-width:620px){.controls{padding:6px;background:#f0efeb;border-radius:0}.studio::after{top:207px;left:16px;font-size:9px}.glaze-tray{top:65px;right:12px}.action-row{gap:4px}}
+    </style>
   </head>
   <body>
     <main class="studio">
