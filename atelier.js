@@ -78,10 +78,10 @@ function makeClayMaps() {
 }
 function claySurfaceDetail(ringIndex, segmentIndex) {
   const t=ringIndex/(ringCount-1); const a=segmentIndex/segments*Math.PI*2;
-  const smooth=1-(state.surfaceSmooth[ringIndex]||0);const throwingRing=Math.sin(t*Math.PI*31+a*.12+Math.sin(t*11)*.7)*.0035*smooth;
-  const softWobble=(Math.sin(a*3.1+t*7.3)*.005+Math.sin(a*7.2-t*13.1)*.0025)*smooth;
-  const slipStreak=Math.max(0,Math.sin(a*2.0-t*18.0))*Math.max(0,Math.sin(a*5.2+t*5.4))*.003*smooth;
-  const moisture=.965+Math.sin(a*3.1+t*19.2)*.018+Math.sin(a*8.4-t*8.7)*.009;
+  const smooth=1-(state.surfaceSmooth[ringIndex]||0);const throwingRing=Math.sin(t*Math.PI*31+Math.sin(a)*.12+Math.sin(t*11)*.7)*.0035*smooth;
+  const softWobble=(Math.sin(a*3.0+t*7.3)*.005+Math.sin(a*7.0-t*13.1)*.0025)*smooth;
+  const slipStreak=Math.max(0,Math.sin(a*2.0-t*18.0))*Math.max(0,Math.sin(a*5.0+t*5.4))*.003*smooth;
+  const moisture=.965+Math.sin(a*3.0+t*19.2)*.018+Math.sin(a*8.0-t*8.7)*.009;
   return {radius:throwingRing+softWobble+slipStreak, moisture};
 }
 function makeClay() {
@@ -93,6 +93,18 @@ function makeClay() {
   glazeCanvas=glazeContext=glazeTexture=glazeMaterial=null;
   material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.027,metalness:materials[state.material].metalness,clearcoat:.012,clearcoatRoughness:.82,vertexColors:true,side:THREE.FrontSide,flatShading:false});
   clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); makeGlazeLayer(); updateMaterial(); resetView();
+}
+// UVs need separate vertices at the wrap; lighting needs a shared normal.
+function joinWrapNormals(meshGeometry, rows) {
+  const normals=meshGeometry.getAttribute('normal');
+  const joined=new THREE.Vector3();
+  for(let row=0;row<rows;row++){
+    const first=row*(segments+1),last=first+segments;
+    joined.set(normals.getX(first)+normals.getX(last),normals.getY(first)+normals.getY(last),normals.getZ(first)+normals.getZ(last)).normalize();
+    normals.setXYZ(first,joined.x,joined.y,joined.z);
+    normals.setXYZ(last,joined.x,joined.y,joined.z);
+  }
+  normals.needsUpdate=true;
 }
 function rebuildMesh() {
   if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
@@ -106,7 +118,7 @@ function rebuildMesh() {
   const bottomIndex=vertices.length/3; vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0); const topIndex=bottomIndex+1; vertices.push(0,state.profile.at(-1).y+state.topDome,0);colors.push(.97,.93,.89);uvs.push(.5,1);
   const hasOpening=Boolean(state.innerProfile?.length);
   for(let s=0;s<segments;s++){indices.push(bottomIndex,s+1,s);if(!hasOpening){const a=(ringCount-1)*stride+s,b=a+1;indices.push(topIndex,b,a);}}
-  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); geometry.computeBoundingSphere();
+  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals(); joinWrapNormals(geometry,ringCount); geometry.computeBoundingSphere();
   if(hasOpening)buildInteriorMesh();
 }
 function buildInteriorMesh(){
@@ -117,7 +129,7 @@ function buildInteriorMesh(){
   for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const a=innerStart+r*stride+s,b=innerStart+(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,d,b,b,d,c);}
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++)indices.push(floorCenter,innerStart+s,innerStart+s+1);
   const innerTop=innerStart+(inner.length-1)*stride;for(let s=0;s<segments;s++){const oa=s,ob=s+1,ia=innerTop+s,ib=innerTop+s+1;indices.push(oa,ob,ia,ob,ib,ia);}
-  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();
+  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+1);
   const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;
   // A tiny warm bounce-light lift keeps the real clay floor readable under its rim.
   innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;

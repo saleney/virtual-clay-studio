@@ -42,12 +42,12 @@
       .speed-control input,.glaze-size input{accent-color:#98553d}
       .salene-home-link{padding:0 2px;background:transparent;color:#f0efeb;text-shadow:0 1px 3px #201810,0 0 7px #201810;font-weight:400;letter-spacing:.02em;text-transform:none;border:0}
       .salene-home-link:hover,.salene-home-link:focus-visible{color:#fff8ef}
-      .slip-tray,.glaze-tray{padding:8px;background:rgba(30,25,21,.82);color:#f0efeb;text-shadow:none;border-top:0}
+      .slip-tray,.glaze-tray{top:max(8px,env(safe-area-inset-top));padding:8px;background:rgba(30,25,21,.82);color:#f0efeb;text-shadow:none;border-top:0}
       .tool{background:transparent;color:#f0efeb;border-color:transparent;font-weight:400}
       .tool[aria-pressed="true"]{background:#98553d;color:#fff8ef;border-color:#98553d;box-shadow:none}
       .slip-color[aria-pressed="true"],.glaze-color[aria-pressed="true"]{outline:2px solid #98553d;outline-offset:2px;box-shadow:none}
       .first-invite{background:transparent;color:#fff8ef;border:0;text-shadow:0 1px 3px #201810,0 0 7px #201810;font-weight:400;letter-spacing:.08em}
-      @media(max-width:620px){.slip-tray,.glaze-tray{background:transparent}.controls{padding:6px;background:transparent;border-radius:0}.glaze-tray{top:65px;right:12px}.action-row{gap:4px}}
+      @media(max-width:620px){.slip-tray,.glaze-tray{top:calc(max(1px,env(safe-area-inset-top)) + 54px);background:transparent}.controls{padding:6px;background:transparent;border-radius:0}.glaze-tray{right:12px}.action-row{gap:4px}}
     </style>
   </head>
   <body>
