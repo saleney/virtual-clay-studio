@@ -9,6 +9,8 @@ const fallback = document.querySelector('[data-fallback]');
 const contact = document.querySelector('[data-contact]');
 const phaseNote = document.querySelector('[data-phase-note]');
 let firingTimer, phaseNoteTimer, carveStrokeId=0;
+let wetness=0;
+const wetClayTint=new THREE.Color(0x89765d), materialColor=new THREE.Color();
 let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
 let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
@@ -125,6 +127,7 @@ function claySurfaceDetail(ringIndex,segmentIndex){
 }
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
+  wetness=0;surface.querySelectorAll('.water-splash').forEach(splash=>splash.remove());
   document.querySelector('.clay-amount')?.classList.remove('is-tucked');
   currentShelfId=null;state.pointer=null;state.before=null;state.strokeChanged=false;contact?.classList.remove('is-active');
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
@@ -241,7 +244,37 @@ function buildInteriorMesh(){
   innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;
   innerMesh=new THREE.Mesh(innerGeometry,innerMaterial);innerMesh.castShadow=true;innerMesh.receiveShadow=true;wheelGroup.add(innerMesh);if(glazeMaterial)makeInnerGlazeLayer();
 }
-function updateMaterial() { const sample=materials[state.material]; const color=new THREE.Color(sample.color);if(state.fired)color.lerp(new THREE.Color(0xb29b83),.08);material.color.copy(color);material.roughness=state.fired?Math.max(.48,sample.roughness-.08):sample.roughness;material.metalness=0;material.clearcoat=state.fired?.07:.012;material.clearcoatRoughness=state.fired?.55:.82;material.needsUpdate=true; }
+// Water changes material uniforms only; geometry, paint, and camera stay untouched.
+function updateMaterial() {
+ const sample=materials[state.material],wet=state.phase==='form'?wetness:0;
+ materialColor.setHex(sample.color);
+ if(state.fired)materialColor.lerp(new THREE.Color(0xb29b83),.08);
+ materialColor.lerp(wetClayTint,wet*.16);
+ for(const target of [material,innerMesh?.material]){
+  if(!target)continue;
+  target.color.copy(materialColor);
+  const dryRoughness=state.fired?Math.max(.48,sample.roughness-.08):sample.roughness;
+  target.roughness=THREE.MathUtils.lerp(dryRoughness,.27,wet);
+  target.metalness=0;
+  target.clearcoat=THREE.MathUtils.lerp(state.fired?.07:.012,.72,wet);
+  target.clearcoatRoughness=THREE.MathUtils.lerp(state.fired?.55:.82,.18,wet);
+ }
+}
+function dryWater(dt){
+ if(wetness<=0)return;wetness=Math.max(0,wetness-Math.max(0,dt)/18);if(wetness<1e-5)wetness=0;updateMaterial();
+}
+function addWater(clientX,clientY){
+ if(state.phase!=='form')return;
+ wetness=1;updateMaterial();completeFirstInvite();
+ status.textContent='A little water. The clay catches the light, then slowly dries.';
+ const splash=document.createElement('span');splash.className='water-splash';splash.setAttribute('aria-hidden','true');
+ const bounds=surface.getBoundingClientRect();
+ splash.style.left=`${(clientX-bounds.left)*surface.clientWidth/bounds.width}px`;
+ splash.style.top=`${(clientY-bounds.top)*surface.clientHeight/bounds.height}px`;
+ splash.innerHTML='<svg viewBox="0 0 100 100"><path d="M49 50q-3-18-10-27M49 50q12-16 24-19M49 50q-19-4-29 3M49 50q13 5 19 19"/><ellipse cx="38" cy="18" rx="3" ry="5"/><circle cx="80" cy="29" r="3"/><circle cx="15" cy="55" r="2"/><ellipse cx="73" cy="75" rx="2" ry="4"/></svg>';
+ surface.append(splash);splash.addEventListener('animationend',()=>splash.remove(),{once:true});
+}
+
 function makeGlazeLayer() {
   const size=mobile?256:512; glazeCanvas=document.createElement('canvas'); glazeCanvas.width=glazeCanvas.height=size; glazeContext=glazeCanvas.getContext('2d');
   glazeTexture=new THREE.CanvasTexture(glazeCanvas); glazeTexture.colorSpace=THREE.SRGBColorSpace; glazeTexture.wrapS=THREE.RepeatWrapping; glazeTexture.wrapT=THREE.ClampToEdgeWrapping;
@@ -262,6 +295,23 @@ function carveSlip(uv){
 }
 function softenSlip(uv){
   if(!uv||!glazeContext)return;const size=glazeCanvas.width,x=Math.round(uv.x*size),y=Math.round((1-uv.y)*size),radius=mobile?12:17,left=Math.max(0,x-radius),top=Math.max(0,y-radius),width=Math.min(radius*2,size-left),height=Math.min(radius*2,size-top);const image=glazeContext.getImageData(left,top,width,height),data=image.data,copy=new Uint8ClampedArray(data);for(let row=1;row<height-1;row++)for(let col=1;col<width-1;col++){const index=(row*width+col)*4;for(let channel=0;channel<4;channel++)data[index+channel]=(copy[index+channel]+copy[index-4+channel]+copy[index+4+channel]+copy[index-width*4+channel]+copy[index+width*4+channel])/5;}glazeContext.putImageData(image,left,top);glazeTexture.needsUpdate=true;state.glaze.changed=true;
+}
+// Contact time, rather than the number of pointer events, controls smoothing.
+// Limit geometry updates to about 12 per second on phones.
+function applyHeldSmoothing(dt){
+ const gesture=state.pointer;
+ if(state.phase!=='form'||!gesture||!['sponge','rib'].includes(state.tool))return;
+ gesture.smoothingTime=(gesture.smoothingTime||0)+dt;
+ if(gesture.smoothingTime<.08)return;
+ const elapsed=Math.min(gesture.smoothingTime,.16);gesture.smoothingTime=0;
+ wheelGroup.updateMatrixWorld(true);
+ const hit=getHitAt(gesture.x,gesture.y);if(!hit)return;
+ const index=profileIndexFromHit(hit);
+ const strength=1-Math.exp(-elapsed*(state.tool==='sponge'?2:3));
+ restoreTowardSymmetry(hit,strength,.2,.55,false);
+ if(state.tool==='sponge'){applySponge(index);softenSlip(hit.uv);}
+ else{smoothProfileRadius(index,7,2);stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
+ status.textContent=state.tool==='sponge'?'The sponge gently softens the grooves beneath it.':'The rib gradually smooths the grooves beneath it.';
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('hand');stageNote.textContent='touch the turning ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
@@ -311,7 +361,7 @@ function fitGrowingClay(){
   }
   cameraFitPending=false;
 }
-function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
+function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();applyHeldSmoothing(dt);dryWater(dt);renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;
@@ -366,7 +416,7 @@ function localAlterationAt(y,angle){
   const index=((Math.round(angle/(Math.PI*2)*segments)%segments)+segments)%segments;
   return {radial:band.radial[index],vertical:band.vertical[index]};
 }
-function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
+function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius,rebuild=true){
   if(!hit||hit.object!==clay||!state.localAlterations.length)return false;
   const local=wheelGroup.worldToLocal(hit.point.clone());let changed=false;
   state.localAlterations=state.localAlterations.filter(mark=>{
@@ -374,7 +424,7 @@ function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
     if(influence>.001){const damp=1-strength*influence;mark.radialDelta*=damp;mark.verticalDelta=(mark.verticalDelta||0)*damp;changed=true;}
     return Math.abs(mark.radialDelta)>=.0015||Math.abs(mark.verticalDelta||0)>=.0015;
   });
-  if(changed){rebuildMesh();state.strokeChanged=true;}return changed;
+  if(changed){if(rebuild)rebuildMesh();state.strokeChanged=true;}return changed;
 }
 function cloneProfile(){return {rings:state.profile.map(r=>({...r})),innerProfile:state.innerProfile?.map(r=>({...r}))||null,surfaceSmooth:[...state.surfaceSmooth],topDome:state.topDome,localAlterations:state.localAlterations.map(mark=>({...mark}))};}
 function saveBeforeStroke(){state.before=cloneProfile();state.strokeChanged=false;}
@@ -525,6 +575,7 @@ function onDown(event){
   if(state.pointer||state.glaze.pointer)return;
   if(event.cancelable)event.preventDefault();const hit=getHit(event);if(!hit)return;renderer.domElement.setPointerCapture(event.pointerId);
   if(state.phase==='form')document.querySelector('.clay-amount')?.classList.add('is-tucked');
+  if(state.phase==='form'&&state.tool==='water'){addWater(event.clientX,event.clientY);return;}
   if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);return;}
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
   if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&!(hit.object===innerMesh&&radial<rimRadius-.025)&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
@@ -536,6 +587,7 @@ function onDown(event){
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
+  if(state.pointer?.id===event.pointerId&&state.phase==='form'&&['sponge','rib'].includes(state.tool)){state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);return;}
   if(!state.pointer){if(event.pointerType==='mouse')moveContact(event.clientX,event.clientY,true);return;}if(state.phase!=='form'||state.pointer.id!==event.pointerId)return;const rawX=event.clientX-state.pointer.x,rawY=event.clientY-state.pointer.y;const dx=THREE.MathUtils.clamp(rawX,-18,18),dy=THREE.MathUtils.clamp(rawY,-18,18);if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;const vertical=Math.abs(dy)>Math.abs(dx)*1.12;
   if(state.pointer.mode==='alter'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const signedDistance=dragX*state.pointer.outward.x+dragY*state.pointer.outward.y;const amount=THREE.MathUtils.clamp(signedDistance*.0019,-.115,.105);if(Math.abs(amount)<.012)return;state.pointer.alteration.radialDelta=amount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=amount<0?'One small dent stays where your hand left it.':'One small outward pull stays where your hand left it.';}
   else if(state.pointer.mode==='alter-rim'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const mostlyVertical=Math.abs(dragY)>Math.abs(dragX)*1.15,mostlyHorizontal=Math.abs(dragX)>Math.abs(dragY)*1.15;const radialAmount=mostlyVertical?0:THREE.MathUtils.clamp((dragX*state.pointer.outward.x+dragY*state.pointer.outward.y)*.00165,-.085,.085);const verticalAmount=mostlyHorizontal?0:THREE.MathUtils.clamp(-dragY*.00165,-.1,.1);if(Math.max(Math.abs(radialAmount),Math.abs(verticalAmount))<.01)return;state.pointer.alteration.radialDelta=radialAmount;state.pointer.alteration.verticalDelta=verticalAmount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=mostlyVertical?(verticalAmount>0?'One rim section lifts softly.':'One rim section settles softly.'):(radialAmount>0?'One rim section flares outward.':'One rim section tucks inward.');}
@@ -565,7 +617,7 @@ function onUp(event){
 function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.topDome=snapshot.topDome??.065;state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
 function resetView(){state.yaw=-.42;state.pitch=0;}
 function fire(){
-  if(state.phase!=='form')return;completeFirstInvite();state.phase='firing';state.wheel.resumeTarget=state.wheel.target;state.wheel.target=Math.min(state.wheel.target,.75);surface.classList.add('is-firing');status.textContent='The small kiln warms the piece.';showPhaseNote('Firing…');
+  if(state.phase!=='form')return;wetness=0;updateMaterial();completeFirstInvite();state.phase='firing';state.wheel.resumeTarget=state.wheel.target;state.wheel.target=Math.min(state.wheel.target,.75);surface.classList.add('is-firing');status.textContent='The small kiln warms the piece.';showPhaseNote('Firing…');
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
   firingTimer=setTimeout(()=>{if(state.phase!=='firing')return;state.fired=true;state.phase='fired';surface.classList.remove('is-firing');surface.classList.add('is-fired');updateMaterial();enterGlaze();showPhaseNote('Now you may begin glazing.',4500);},reduced?500:2400);
 }
@@ -628,10 +680,10 @@ function renderFinishedShelves(animateId=null){
 }
 
 function finishPiece(){if(state.phase!=='glaze')return;state.phase='complete';clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';setWheelSpeed(.12);surface.classList.add('is-complete');placeFinishedPiece();status.textContent=matchMedia('(min-width:801px)').matches?'Finished. Your piece is on the shelf.':'Finished. Your piece is kept on the studio shelf.';stageNote.textContent='your finished piece';}
-function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
+function keyboardShape(event){const key=event.key;if(state.tool==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
-function selectTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.'}[tool];}
+function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.',water:'Tap the clay to splash a little water.'}[tool];}
 function selectSlipColor(color){state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
 function bind(){
   renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointermove',onMove); renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active')); renderer.domElement.addEventListener('pointerup',onUp); renderer.domElement.addEventListener('pointercancel',onUp); renderer.domElement.addEventListener('lostpointercapture',onUp); renderer.domElement.addEventListener('keydown',keyboardShape);
