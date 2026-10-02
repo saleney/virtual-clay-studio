@@ -112,3 +112,17 @@
  .bottom-interface .controls{position:static;justify-content:flex-start;gap:12px}
  .bottom-interface .shelf-link{position:static;transform:none;flex-shrink:0}
 }
+
+/* Mobile: the ceramic is the focus; tools sit beside the working controls. */
+@media(max-width:620px){
+ .three-stage{inset:100px -18px 145px}
+ .mobile-studio-shelf{top:15%;height:100px;opacity:.48}
+ .tool-row{top:auto;bottom:76px;left:24px;right:24px;gap:8px}
+ .slip-colors{top:auto;bottom:128px}
+ .controls{left:12px;right:12px;bottom:20px;gap:6px}
+ .speed-control{flex:1.6 1 110px;min-width:100px;gap:5px;font-size:8px}
+ .speed-control input{width:auto;min-width:60px;flex:1}
+ .making-actions{flex:2.6 1 210px;width:auto;gap:5px;min-width:0}
+ .making-actions .action{flex:1 1 0;min-width:0;padding:7px 3px;font-size:8px}
+ .phase-note,.work-surface.is-glazing .phase-note{top:96px}
+}
