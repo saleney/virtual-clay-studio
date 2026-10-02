@@ -116,6 +116,7 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
 }
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
+  cameraFitPending=true;framingSignature=null;
   document.querySelector('.clay-amount')?.classList.remove('is-tucked');
   currentShelfId=null;
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
@@ -142,7 +143,7 @@ function joinWrapNormals(meshGeometry, rows) {
   normals.needsUpdate=true;
 }
 function rebuildMesh() {
-  cameraFitPending=true;prepareAlterationAngles();
+  prepareAlterationAngles();
   if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
   if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
@@ -251,7 +252,7 @@ function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width
   baseFramingFov=camera.fov;cameraFitPending=true;framingSignature=null;
   renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
-// Keep taller/wider clay below the header without changing its geometry.
+// Frame fresh clay once; tools never change the camera or the hardware silhouette.
 function fitGrowingClay(){
   const signature=state.profile.map(r=>`${r.r.toFixed(3)},${r.y.toFixed(3)}`).join(';');
   if(signature===framingSignature){cameraFitPending=false;return;}
