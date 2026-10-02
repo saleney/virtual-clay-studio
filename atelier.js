@@ -116,7 +116,6 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
 }
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
-  cameraFitPending=true;framingSignature=null;
   document.querySelector('.clay-amount')?.classList.remove('is-tucked');
   currentShelfId=null;
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
@@ -252,7 +251,7 @@ function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width
   baseFramingFov=camera.fov;cameraFitPending=true;framingSignature=null;
   renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
-// Frame fresh clay once; tools never change the camera or the hardware silhouette.
+// Fit only on initialization or viewport resize; size choices and tools keep hardware fixed.
 function fitGrowingClay(){
   const signature=state.profile.map(r=>`${r.r.toFixed(3)},${r.y.toFixed(3)}`).join(';');
   if(signature===framingSignature){cameraFitPending=false;return;}
@@ -469,6 +468,7 @@ function widenInterior(amount){
 }
 function onDown(event){
   if(event.cancelable)event.preventDefault();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
+  if(state.phase==='form')document.querySelector('.clay-amount')?.classList.add('is-tucked');
   if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);return;}
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
   if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&!(hit.object===innerMesh&&radial<rimRadius-.025)&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
@@ -572,7 +572,7 @@ function renderFinishedShelves(animateId=null){
 }
 
 function finishPiece(){if(state.phase!=='glaze')return;state.phase='complete';clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';setWheelSpeed(.12);surface.classList.add('is-complete');placeFinishedPiece();status.textContent=matchMedia('(min-width:801px)').matches?'Finished. Your piece is on the shelf.':'Finished. Your piece is kept on the studio shelf.';stageNote.textContent='your finished piece';}
-function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
+function keyboardShape(event){const key=event.key;if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
 function selectTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.'}[tool];}
@@ -596,7 +596,6 @@ function bind(){
   document.querySelectorAll('[data-clay-amount]').forEach(button=>button.addEventListener('click',()=>{
     const amount=Number(button.dataset.clayAmount);if(![5,10,15].includes(amount))return;
     if(amount!==state.clayAmount){state.clayAmount=amount;makeClay();}
-    document.querySelector('.clay-amount')?.classList.add('is-tucked');
     document.querySelectorAll('[data-clay-amount]').forEach(choice=>choice.setAttribute('aria-pressed',String(Number(choice.dataset.clayAmount)===amount)));
     status.textContent=`${amount} lb clay is ready to shape.`;
   }));
