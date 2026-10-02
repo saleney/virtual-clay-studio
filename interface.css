@@ -126,3 +126,13 @@
  .making-actions .action{flex:1 1 0;min-width:0;padding:7px 3px;font-size:8px}
  .phase-note,.work-surface.is-glazing .phase-note{top:96px}
 }
+
+/* Keep the mobile backdrop continuous and slip beside the tools. */
+@media(max-width:620px){
+ .room-floor{display:none}
+ .work-surface{background:linear-gradient(#d8c4a8,#eddcc1 60%,#cfb38d)}
+}
+@media(min-width:621px){
+ .slip-colors{left:158px;right:auto;top:22%;background:#f7efe08c}
+}
+@media(min-width:621px) and (max-width:800px){.slip-colors{left:146px}}

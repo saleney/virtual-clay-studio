@@ -6,3 +6,5 @@ Preview: http://127.0.0.1:8107/working-folios/clay-interface/index.html?qa-mobil
 Screenshot: mobile-focus.png
 
 Release prepared for publication on October 2, 2026. Desktop framing is unchanged.
+
+Published commit: `bf715834943da49a9099b2c1c445ce015f7851fe`. GitHub Pages run `36979649024` succeeded. Live mobile verification found the current stylesheet, bottom tool row, wider speed control, rendered ceramic, and no horizontal overflow. Screenshot: `live-mobile-focus.png`.
