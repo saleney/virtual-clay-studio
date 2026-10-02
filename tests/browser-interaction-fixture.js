@@ -42,6 +42,22 @@ if(new URLSearchParams(location.search).has('interaction-qa')){
     check(!state.pointer,`${amount} lb cancellation clears gesture`);
     makeClay();check(wetness===0,`${amount} lb reset dries clay`);
    }
+   for(const amount of [5,10,15]){
+    state.clayAmount=amount;makeClay();await wait(100);selectTool('rib');
+    let p=pointAt(1,0);press(p);
+    check(state.pointer?.mode==='start',`${amount} lb rib enters center opening mode`);
+    onMove({pointerId:77,clientX:p.x,clientY:p.y+16});onUp({pointerId:77});
+    check(!!state.innerProfile,`${amount} lb rib opens the clay`);
+    p=pointAt(1,0);press(p);
+    check(state.pointer?.mode==='inside',`${amount} lb rib finds the inner floor`);
+    const radius=state.innerProfile[0].r;
+    onMove({pointerId:77,clientX:p.x+16,clientY:p.y});onUp({pointerId:77});
+    check(state.innerProfile[0].r>radius,`${amount} lb rib widens the inside`);
+    p=pointAt(.7,.75);press(p);const height=state.profile.at(-1).y;
+    onMove({pointerId:77,clientX:p.x,clientY:p.y+16});onUp({pointerId:77});
+    check(state.profile.at(-1).y<=height+1e-6,`${amount} lb rib compression does not lift clay`);
+    check(Math.abs(state.innerProfile.at(-1).y-state.profile.at(-1).y)<1e-6,`${amount} lb rib preserves attached rim`);
+   }
    // Rapid, oversized and repeatedly reversed drags, with frequent tool changes.
    state.clayAmount=15;makeClay();selectTool('hand');
    setInterior(.3,.4);

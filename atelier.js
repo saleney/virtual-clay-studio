@@ -301,6 +301,7 @@ function softenSlip(uv){
 function applyHeldSmoothing(dt){
  const gesture=state.pointer;
  if(state.phase!=='form'||!gesture||!['sponge','rib'].includes(state.tool))return;
+ if(state.tool==='rib'&&['start','inside'].includes(gesture.mode))return;
  gesture.smoothingTime=(gesture.smoothingTime||0)+dt;
  if(gesture.smoothingTime<.08)return;
  const elapsed=Math.min(gesture.smoothingTime,.16);gesture.smoothingTime=0;
@@ -486,6 +487,12 @@ function carveVertical(hit){
   state.pointer.carvePoint=point;rebuildMesh();
 }
 function applyCarve(index){state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>3)return;const falloff=Math.exp(-(d*d)/(2*1.15*1.15));ring.r=THREE.MathUtils.clamp(ring.r-.014*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
+function compressRib(index,radial,vertical){
+  // A rib settles height or compresses width; lifting it never stretches the clay.
+  if(Math.abs(vertical)>Math.abs(radial)*1.12){if(vertical>0)applyHeight(index,-vertical*.00115);}
+  else if(radial<0)applyRadius(index,radial*.0018);
+  smoothProfileRadius(index,7,2);stabilizeProfile();rebuildMesh();state.strokeChanged=true;
+}
 function editProfile(index,radial,vertical){
   // The vessel spins in world space, but its profile remains axisymmetric. Screen motion is
   // therefore mapped to a stable ring index instead of chasing individual rotating vertices.
@@ -583,11 +590,11 @@ function onDown(event){
   const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
   // Keep the newly opened interior forgivingly tappable from this elevated view.
   const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
-  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(state.tool==='hand'&&inside?'inside':(state.tool==='hand'&&upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(['hand','rib'].includes(state.tool)&&inside?'inside':(['hand','rib'].includes(state.tool)&&upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
-  if(state.pointer?.id===event.pointerId&&state.phase==='form'&&['sponge','rib'].includes(state.tool)){state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);return;}
+  if(state.pointer?.id===event.pointerId&&state.phase==='form'&&state.tool==='sponge'){state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);return;}
   if(!state.pointer){if(event.pointerType==='mouse')moveContact(event.clientX,event.clientY,true);return;}if(state.phase!=='form'||state.pointer.id!==event.pointerId)return;const rawX=event.clientX-state.pointer.x,rawY=event.clientY-state.pointer.y;const dx=THREE.MathUtils.clamp(rawX,-18,18),dy=THREE.MathUtils.clamp(rawY,-18,18);if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;const vertical=Math.abs(dy)>Math.abs(dx)*1.12;
   if(state.pointer.mode==='alter'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const signedDistance=dragX*state.pointer.outward.x+dragY*state.pointer.outward.y;const amount=THREE.MathUtils.clamp(signedDistance*.0019,-.115,.105);if(Math.abs(amount)<.012)return;state.pointer.alteration.radialDelta=amount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=amount<0?'One small dent stays where your hand left it.':'One small outward pull stays where your hand left it.';}
   else if(state.pointer.mode==='alter-rim'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const mostlyVertical=Math.abs(dragY)>Math.abs(dragX)*1.15,mostlyHorizontal=Math.abs(dragX)>Math.abs(dragY)*1.15;const radialAmount=mostlyVertical?0:THREE.MathUtils.clamp((dragX*state.pointer.outward.x+dragY*state.pointer.outward.y)*.00165,-.085,.085);const verticalAmount=mostlyHorizontal?0:THREE.MathUtils.clamp(-dragY*.00165,-.1,.1);if(Math.max(Math.abs(radialAmount),Math.abs(verticalAmount))<.01)return;state.pointer.alteration.radialDelta=radialAmount;state.pointer.alteration.verticalDelta=verticalAmount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=mostlyVertical?(verticalAmount>0?'One rim section lifts softly.':'One rim section settles softly.'):(radialAmount>0?'One rim section flares outward.':'One rim section tucks inward.');}
@@ -604,9 +611,10 @@ function onMove(event){
     else if(Math.abs(dx)>1){widenInterior(Math.abs(dx)*.0027);status.textContent='The inner floor travels outward; the outside stays steady.';}
   }
   else {
-    editProfile(state.pointer.index,radial,dy);
+    if(state.tool==='rib')compressRib(state.pointer.index,radial,dy);
+    else editProfile(state.pointer.index,radial,dy);
     if(!state.wheel.paused&&state.tool==='hand'&&restoreTowardSymmetry(getHit(event),.07,.28,.58))status.textContent='Your hands gently work this part back toward center.';
-    if(state.tool==='rib') { smoothProfileRadius(state.pointer.index,18,4); stabilizeProfile(); rebuildMesh(); if(!state.wheel.paused&&restoreTowardSymmetry(getHit(event),.18,.34,.7))status.textContent='The rib steadily brings this part back toward center.'; }
+    if(state.tool==='rib'){if(!state.wheel.paused)restoreTowardSymmetry(getHit(event),.18,.34,.7);status.textContent='The rib compresses and settles the outer curve.';}
   }
   state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);
 }
@@ -683,7 +691,7 @@ function finishPiece(){if(state.phase!=='glaze')return;state.phase='complete';cl
 function keyboardShape(event){const key=event.key;if(state.tool==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){if(state.phase==='glaze'){const previous=state.glaze.history.pop();if(!previous){status.textContent='No glaze stroke to undo yet.';return;}state.glaze.redo.push(snapshotGlaze());restoreGlaze(previous);status.textContent='One glaze gesture lifted away.';return;}const previous=state.history.pop();if(!previous){status.textContent='Nothing to undo yet.';return;}state.redo.push(cloneProfile());restore(previous);status.textContent='One whole clay gesture gently lifted away.';}
 function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!next){status.textContent='No glaze stroke to redo yet.';return;}state.glaze.history.push(snapshotGlaze());restoreGlaze(next);status.textContent='The glaze gesture returned.';return;}const next=state.redo.pop();if(!next){status.textContent='Nothing to redo yet.';return;}state.history.push(cloneProfile());restore(next);status.textContent='The clay gesture returned.';}
-function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.',water:'Tap the clay to splash a little water.'}[tool];}
+function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib compresses and smooths the outside, or opens the clay from the center.',water:'Tap the clay to splash a little water.'}[tool];}
 function selectSlipColor(color){state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
 function bind(){
   renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointermove',onMove); renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active')); renderer.domElement.addEventListener('pointerup',onUp); renderer.domElement.addEventListener('pointercancel',onUp); renderer.domElement.addEventListener('lostpointercapture',onUp); renderer.domElement.addEventListener('keydown',keyboardShape);

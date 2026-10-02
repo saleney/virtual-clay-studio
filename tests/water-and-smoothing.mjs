@@ -41,3 +41,11 @@ assert.equal(state.pointer,null);assert.equal(state.history.length,1);assert.equ
 state.glaze={pointer:{id:2},changed:false,before:{},history:[],redo:[]};
 ctx.selectTool('hand');assert.equal(state.glaze.pointer,null);
 console.log('Mid-gesture tool changes cleanly finish shaping and brush gestures');
+
+state.phase='form';state.tool='rib';
+for(const mode of ['start','inside']){
+ state.pointer={id:1,x:200,y:330,mode};const before=rebuilds;
+ for(let i=0;i<200;i++)ctx.applyHeldSmoothing(.02);
+ assert.equal(rebuilds,before,'Rib opening must not simultaneously reshape the outer wall');
+}
+console.log('Rib center/inside contact leaves outer smoothing inactive');
