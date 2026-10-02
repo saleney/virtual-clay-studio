@@ -126,7 +126,7 @@ function claySurfaceDetail(ringIndex,segmentIndex){
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
   document.querySelector('.clay-amount')?.classList.remove('is-tucked');
-  currentShelfId=null;
+  currentShelfId=null;state.pointer=null;state.before=null;state.strokeChanged=false;contact?.classList.remove('is-active');
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
   clearTimeout(firingTimer);clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';
   state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.topDome=.065; state.localAlterations=[]; state.history=[]; state.redo=[]; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-firing','is-glazing','is-complete');
@@ -151,6 +151,7 @@ function joinWrapNormals(meshGeometry, rows) {
   normals.needsUpdate=true;
 }
 function rebuildMesh() {
+  reconcileInterior();
   prepareAlterationAngles();
   if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
   if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
@@ -467,8 +468,22 @@ function setInterior(depth,radius){
   });
   rebuildMesh();state.strokeChanged=true;
 }
+// The cavity belongs to the same vessel. Outer shaping must move its rim too.
+function reconcileInterior(){
+ const inner=state.innerProfile;if(!inner?.length)return;
+ const top=state.profile.at(-1).y,base=state.profile[0].y;
+ const oldFloor=inner[0].y,oldTop=inner.at(-1).y,oldDepth=oldTop-oldFloor;
+ const floor=THREE.MathUtils.clamp(oldFloor,base+.12,top-.025);
+ for(let i=0;i<inner.length;i++){
+  const t=oldDepth>1e-6?THREE.MathUtils.clamp((inner[i].y-oldFloor)/oldDepth,0,1):i/(inner.length-1);
+  inner[i].y=THREE.MathUtils.lerp(floor,top,t);
+  inner[i].r=THREE.MathUtils.clamp(inner[i].r,.018,Math.max(.018,outerRadiusAt(inner[i].y)-.12));
+ }
+ inner.at(-1).y=top;
+}
 function interiorInfo(){if(!state.innerProfile)return null;const floor=state.innerProfile[0],rim=state.innerProfile.at(-1);return {depth:state.profile.at(-1).y-floor.y,radius:rim.r,floorY:floor.y};}
 function openClay(depthDelta,radiusDelta=0){
+  reconcileInterior();
   const current=interiorInfo();
   // The first press makes a small, visible well—not a preset bowl. A readable
   // target lets the next outward pull continue the same clay action.
@@ -507,7 +522,8 @@ function widenInterior(amount){
   rebuildMesh();state.strokeChanged=true;
 }
 function onDown(event){
-  if(event.cancelable)event.preventDefault();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
+  if(state.pointer||state.glaze.pointer)return;
+  if(event.cancelable)event.preventDefault();const hit=getHit(event);if(!hit)return;renderer.domElement.setPointerCapture(event.pointerId);
   if(state.phase==='form')document.querySelector('.clay-amount')?.classList.add('is-tucked');
   if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);return;}
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
@@ -516,7 +532,7 @@ function onDown(event){
   const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
   // Keep the newly opened interior forgivingly tappable from this elevated view.
   const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
-  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(state.tool==='hand'&&inside?'inside':(state.tool==='hand'&&upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
@@ -618,7 +634,7 @@ function redo(){if(state.phase==='glaze'){const next=state.glaze.redo.pop();if(!
 function selectTool(tool){state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge will soften nearby slip.',rib:'The rib will gently settle the outer curve.'}[tool];}
 function selectSlipColor(color){state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
 function bind(){
-  renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointermove',onMove); renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active')); renderer.domElement.addEventListener('pointerup',onUp); renderer.domElement.addEventListener('pointercancel',onUp); renderer.domElement.addEventListener('keydown',keyboardShape);
+  renderer.domElement.addEventListener('pointerdown',onDown); renderer.domElement.addEventListener('pointermove',onMove); renderer.domElement.addEventListener('pointerleave',()=>contact?.classList.remove('is-active')); renderer.domElement.addEventListener('pointerup',onUp); renderer.domElement.addEventListener('pointercancel',onUp); renderer.domElement.addEventListener('lostpointercapture',onUp); renderer.domElement.addEventListener('keydown',keyboardShape);
   document.querySelectorAll('[data-undo]').forEach(button=>button.addEventListener('click',undo)); document.querySelectorAll('[data-redo]').forEach(button=>button.addEventListener('click',redo)); document.querySelectorAll('[data-tool]').forEach(button=>button.addEventListener('click',()=>selectTool(button.dataset.tool))); document.querySelectorAll('[data-slip-color]').forEach(button=>button.addEventListener('click',()=>selectSlipColor(button.dataset.slipColor)));
   const wheelSpeed=document.querySelector('[data-wheel-speed]'), wheelSpeedValue=document.querySelector('[data-wheel-speed-value]'), wheelToggle=document.querySelector('[data-wheel-toggle]');
   if(wheelSpeed&&wheelSpeedValue){
