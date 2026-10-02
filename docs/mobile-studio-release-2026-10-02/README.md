@@ -9,3 +9,5 @@ Production keeps virtual-clay-studio-shelf-v1; prototype storage is not copied. 
 Screenshots: after-desktop.png, after-mobile.png. Earlier release screenshots are in ../cozy-studio-release-2026-10-01/. This verification uses browser responsive previews, not a physical phone.
 
 Desktop follow-up: the action surfaces are partially transparent, and Your shelf aligns with the Speed/Pause/Reset/Fire row at the same 44px height. Mobile navigation stays at the top.
+
+Final desktop spacing: all controls now form one compact centered group, with Speed directly beside Pause/Reset/Fire and Your shelf. Mobile remains unchanged.
