@@ -24,7 +24,7 @@ const segments = mobile ? 96 : 128;
 const minRadius = .3;
 const minGap = .018;
 const state = {
-  material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1,
+  clayAmount:5, material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1,
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
   yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, topDome:.065, localAlterations:[], before:null, strokeChanged:false
 };
@@ -71,10 +71,12 @@ function init() {
   makeClay(); window.addEventListener('resize',resize); resize(); bind(); requestAnimationFrame(render);
 }
 
+function clayAmountScale(){return Math.cbrt(state.clayAmount/5);}
 function initialProfile() {
+  const scale=clayAmountScale();
   return Array.from({length:ringCount},(_,i)=>{
     const t=i/(ringCount-1); const settle=Math.sin(Math.PI*t);
-    return {y:-1.43+t*1.46,r:Math.max(minRadius,1.2+.09*settle-.31*Math.pow(t,2.4))};
+    return {y:-1.43+t*1.46*scale,r:Math.max(minRadius,(1.2+.09*settle-.31*Math.pow(t,2.4))*scale)};
   });
 }
 function makeWheelHeadTexture() {
@@ -227,7 +229,13 @@ function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('hand');stageNote.textContent='touch the turning ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
-function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=matchMedia('(max-width:620px)').matches?43:(camera.aspect<1.4?44:34);camera.updateProjectionMatrix();
+function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);
+  const phone=matchMedia('(max-width:620px)').matches;
+  const framingHeight=Math.max(240,r.height-(phone?170:130)*r.height/stage.clientHeight);
+  camera.clearViewOffset();camera.aspect=r.width/framingHeight;
+  camera.fov=phone?43:(camera.aspect<1.4?44:34);
+  // Extend the viewport downward without moving or shrinking the wheel.
+  camera.setViewOffset(r.width,framingHeight,0,0,r.width,r.height);camera.updateProjectionMatrix();
   if(matchMedia('(max-width:620px)').matches){
     // Frame the stationary pan to the phone width, regardless of screen height.
     setCamera();camera.updateMatrixWorld();let minX=Infinity,maxX=-Infinity;
@@ -268,7 +276,7 @@ function completeFirstInvite(){if(!firstInvite||firstInvite.classList.contains('
 function finishStroke(){if(state.strokeChanged){state.history.push(state.before);if(state.history.length>18)state.history.shift();state.redo=[];completeFirstInvite();}state.before=null;}
 function profileIndexFromHit(hit){const local=wheelGroup.worldToLocal(hit.point.clone());let closest=0;let best=Infinity;state.profile.forEach((ring,i)=>{const d=Math.abs(ring.y-local.y);if(d<best){best=d;closest=i;}});return closest;}
 function stabilizeProfile(){
-  const baseY=-1.43; const maxTop=1.03; const maxSlope=.038; const maxGap=.052;
+  const scale=clayAmountScale(),baseY=-1.43; const maxTop=baseY+2.46*scale; const maxSlope=.038*scale; const maxGap=.052*scale;
   state.profile[0].y=baseY;
   for(let i=1;i<state.profile.length;i++)state.profile[i].y=THREE.MathUtils.clamp(state.profile[i].y,state.profile[i-1].y+minGap,state.profile[i-1].y+maxGap);
   const top=state.profile.at(-1).y;
@@ -286,7 +294,7 @@ function smoothProfileRadius(index,buffer=14,passes=3){
 }
 function applyRadius(index,amount){
   const limited=THREE.MathUtils.clamp(amount,-.032,.032),sigma=8.4;
-  state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>18)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,1.42);});
+  state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>18)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
   smoothProfileRadius(index);stabilizeProfile();
 }
 function applyHeight(index,amount){
@@ -302,7 +310,26 @@ function applySponge(index){
   else smoothProfileRadius(index,5,1);
   stabilizeProfile();rebuildMesh();state.strokeChanged=true;
 }
-function applyCarve(index){state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>3)return;const falloff=Math.exp(-(d*d)/(2*1.15*1.15));ring.r=THREE.MathUtils.clamp(ring.r-.014*falloff,minRadius,1.42);});stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
+// Moving a carving point vertically on a turning vessel traces a slanted groove.
+function carveVertical(hit){
+  if(!hit||hit.object!==clay)return;
+  const local=wheelGroup.worldToLocal(hit.point.clone());
+  const point={y:local.y,angle:Math.atan2(local.z,local.x)};
+  const previous=state.pointer.carvePoint||point;
+  const dy=point.y-previous.y,da=wrappedAngleDistance(point.angle,previous.angle);
+  const steps=Math.min(24,Math.max(1,Math.ceil(Math.max(Math.abs(dy)/.035,Math.abs(da)/.055))));
+  for(let i=1;i<=steps;i++){
+    const t=i/steps,y=previous.y+dy*t,angle=previous.angle+da*t;
+    // Keep successive samples close without piling deep cuts on the same spot.
+    const last=state.pointer.lastCarveMark;
+    if(last&&Math.abs(last.y-y)<.025&&Math.abs(wrappedAngleDistance(last.angle,angle))<.04)continue;
+    if(state.localAlterations.length>=600)break;
+    const mark={y,angle,radialDelta:-.02,heightRadius:.065,angleRadius:.09};
+    state.localAlterations.push(mark);state.pointer.lastCarveMark=mark;state.strokeChanged=true;
+  }
+  state.pointer.carvePoint=point;rebuildMesh();
+}
+function applyCarve(index){state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>3)return;const falloff=Math.exp(-(d*d)/(2*1.15*1.15));ring.r=THREE.MathUtils.clamp(ring.r-.014*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});stabilizeProfile();rebuildMesh();state.strokeChanged=true;}
 function editProfile(index,radial,vertical){
   // The vessel spins in world space, but its profile remains axisymmetric. Screen motion is
   // therefore mapped to a stable ring index instead of chasing individual rotating vertices.
@@ -383,7 +410,7 @@ function onDown(event){
   const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
   // Keep the newly opened interior forgivingly tappable from this elevated view.
   const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
-  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve')state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
@@ -391,7 +418,12 @@ function onMove(event){
   if(state.pointer.mode==='alter'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const signedDistance=dragX*state.pointer.outward.x+dragY*state.pointer.outward.y;const amount=THREE.MathUtils.clamp(signedDistance*.0019,-.115,.105);if(Math.abs(amount)<.012)return;state.pointer.alteration.radialDelta=amount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=amount<0?'One small dent stays where your hand left it.':'One small outward pull stays where your hand left it.';}
   else if(state.pointer.mode==='alter-rim'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const mostlyVertical=Math.abs(dragY)>Math.abs(dragX)*1.15,mostlyHorizontal=Math.abs(dragX)>Math.abs(dragY)*1.15;const radialAmount=mostlyVertical?0:THREE.MathUtils.clamp((dragX*state.pointer.outward.x+dragY*state.pointer.outward.y)*.00165,-.085,.085);const verticalAmount=mostlyHorizontal?0:THREE.MathUtils.clamp(-dragY*.00165,-.1,.1);if(Math.max(Math.abs(radialAmount),Math.abs(verticalAmount))<.01)return;state.pointer.alteration.radialDelta=radialAmount;state.pointer.alteration.verticalDelta=verticalAmount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=mostlyVertical?(verticalAmount>0?'One rim section lifts softly.':'One rim section settles softly.'):(radialAmount>0?'One rim section flares outward.':'One rim section tucks inward.');}
   else if(state.pointer.mode==='sponge'){applySponge(state.pointer.index);softenSlip(getHit(event)?.uv);status.textContent='The sponge settles the clay into a softer curve.';}
-  else if(state.pointer.mode==='carve'){applyCarve(state.pointer.index);carveSlip(getHit(event)?.uv);status.textContent='A small groove gathers beneath the carving tool.';}
+  else if(state.pointer.mode==='carve'){
+    const hit=getHit(event);
+    if(vertical||state.pointer.verticalCarve){state.pointer.verticalCarve=true;carveVertical(hit);status.textContent=state.wheel.paused?'A vertical groove follows your carving tool.':'The turning wheel draws your downward cut into a diagonal groove.';}
+    else{if(hit)applyCarve(profileIndexFromHit(hit));status.textContent='A small groove gathers beneath the carving tool.';}
+    carveSlip(hit?.uv);
+  }
   else if(state.pointer.mode==='start'&&dy>0){openClay(dy*.0017);state.pointer.mode='inside';status.textContent='A small clay floor appears beneath the cursor.';}
   else if(state.pointer.mode==='inside'){
     if(dy>0&&Math.abs(dy)>Math.abs(dx)*.72){openClay(dy*.00155);status.textContent='The inner floor deepens, held above the wheel.';}
@@ -495,5 +527,11 @@ function bind(){
   document.querySelector('[data-fire]')?.addEventListener('click',fire); document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze); document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});
   document.querySelectorAll('[data-glaze-color]').forEach(button=>button.addEventListener('click',()=>selectGlazeColor(button.dataset.glazeColor)));document.querySelector('[data-finish]')?.addEventListener('click',finishPiece);document.querySelector('[data-glaze-again]')?.addEventListener('click',()=>{state.phase='glaze';setWheelSpeed(.75);surface.classList.remove('is-complete');status.textContent='The glaze is open again.';});
   const glazeSize=document.querySelector('[data-glaze-size]'),glazeSizeValue=document.querySelector('[data-glaze-size-value]');glazeSize?.addEventListener('input',()=>{state.glazeBrushSize=Number(glazeSize.value);glazeSizeValue.textContent=`${state.glazeBrushSize.toFixed(1)}×`;status.textContent=state.glazeBrushSize>1.4?'A broad glaze brush is ready.':state.glazeBrushSize<.8?'A fine glaze brush is ready.':'The glaze brush is ready.';});
+  document.querySelectorAll('[data-clay-amount]').forEach(button=>button.addEventListener('click',()=>{
+    const amount=Number(button.dataset.clayAmount);if(![5,10,15].includes(amount)||amount===state.clayAmount)return;
+    state.clayAmount=amount;makeClay();
+    document.querySelectorAll('[data-clay-amount]').forEach(choice=>choice.setAttribute('aria-pressed',String(Number(choice.dataset.clayAmount)===amount)));
+    status.textContent=`Fresh ${amount} lb clay. More material to shape.`;
+  }));
   document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
 }

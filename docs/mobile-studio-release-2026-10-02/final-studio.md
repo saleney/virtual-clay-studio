@@ -1,0 +1,14 @@
+# Finished studio — October 2, 2026
+
+Approved by Salene for publication.
+
+- Cozy shelves and floor preserved.
+- Wheel lifted slightly, with its full rounded base visible.
+- Mobile pan fits the screen width.
+- 5 / 10 / 15 lb starting clay choices; Reset retains the selection.
+- Vertical carving leaves a local groove that follows the rotating surface; paused carving follows a straight stroke.
+- Glaze palette at the bottom; slip palette beside the tools on desktop and above them on mobile.
+- Quiet controls without brown outlines; higher desktop invitation.
+- Touch marker aligned with the pointer; shaping prevents page selection.
+
+Build and whitespace checks passed. Browser previews exercised clay choices, Reset, vertical carving with turning/paused wheel, automatic firing-to-glazing, palette placement, touch alignment, and desktop/mobile wheel framing. Physical-phone testing remains user feedback.

@@ -144,3 +144,45 @@
 /* Restore the floor as room scenery; keep touch gestures on the clay. */
 .room-floor{display:block}
 .studio{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+
+/* Lift the wheel; glazing tools join the bottom working area. */
+@media(min-width:621px){
+ .three-stage{top:76px;bottom:130px}
+ .glaze-tray{top:auto;bottom:106px;left:50%;right:auto;transform:translateX(-50%);flex-direction:row;padding:8px 12px;gap:12px}
+ .glaze-colors{grid-template-columns:repeat(8,44px);gap:8px}
+ .glaze-size{width:110px}
+}
+@media(max-width:620px){
+ .three-stage{inset:75px -18px 170px}
+ .glaze-tray{top:auto;bottom:76px;left:18px;right:18px;transform:none;gap:4px}
+ .glaze-colors{grid-template-columns:repeat(4,44px);gap:0 20px}
+ .glaze-size{min-height:44px}
+}
+
+/* Starting mound sizes, kept beside the making tools. */
+.clay-amount{position:absolute;z-index:4;left:26px;top:calc(22% - 52px);display:flex;align-items:center;gap:5px;font:10px/1.3 ui-monospace,monospace;color:#685946}
+.clay-amount button{min-width:44px;min-height:44px;padding:5px;background:transparent;border:1px solid transparent;border-radius:5px;color:inherit;font:inherit}
+.clay-amount button[aria-pressed=true]{background:#f5eadb66;border-color:#886b493d}
+.clay-amount span{margin-right:3px}
+@media(max-width:800px) and (min-width:621px){.clay-amount{left:14px}}
+@media(max-width:620px){
+ .clay-amount{top:auto;bottom:128px;left:18px;right:18px;justify-content:center}
+ .slip-tray:has([data-tool="brush"][aria-pressed="true"]) .clay-amount{display:none}
+}
+
+/* Bottom controls use soft fills rather than brown borders. */
+.controls .action,.bottom-interface .shelf-link{border-color:transparent}
+@media(max-width:620px){
+ .tool-row .tool[aria-pressed=true],.clay-amount button[aria-pressed=true]{border-color:transparent}
+}
+
+/* Quiet desktop controls and a higher invitation above the clay. */
+@media(min-width:621px){
+ .tool-row .tool[aria-pressed=true],.clay-amount button[aria-pressed=true]{border-color:transparent}
+ .tool-row,.slip-colors,.glaze-tray,.controls,.bottom-interface{border:0;box-shadow:none}
+ .first-invite{top:17%}
+}
+
+/* Let the wheel base render below its original framing, behind the controls. */
+@media(min-width:621px){.three-stage{bottom:0}}
+@media(max-width:620px){.three-stage{bottom:0}}
