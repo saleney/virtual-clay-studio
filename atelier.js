@@ -235,11 +235,13 @@ function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';setWhe
 // adds surrounding hardware, never a reason to shrink the user's piece.
 function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);
   const phone=matchMedia('(max-width:620px)').matches;
-  const framingHeight=Math.max(240,r.height-(phone?170:130)*r.height/stage.clientHeight);
+  const viewportScale=r.height/stage.clientHeight;
+  const topReserve=(phone?75:76)*viewportScale;
+  const framingHeight=Math.max(240,r.height-topReserve-(phone?170:130)*viewportScale);
   camera.clearViewOffset();camera.aspect=r.width/framingHeight;
   camera.fov=phone?43:(camera.aspect<1.4?44:34);
-  // Extend the viewport downward without moving or shrinking the wheel.
-  camera.setViewOffset(r.width,framingHeight,0,0,r.width,r.height);camera.updateProjectionMatrix();
+  // Draw above and below the original framing, so tall clay is never clipped by a header strip.
+  camera.setViewOffset(r.width,framingHeight,0,-topReserve,r.width,r.height);camera.updateProjectionMatrix();
   if(matchMedia('(max-width:620px)').matches){
     // Frame the stationary pan to the phone width, regardless of screen height.
     setCamera();camera.updateMatrixWorld();let minX=Infinity,maxX=-Infinity;
