@@ -136,3 +136,11 @@
  .slip-colors{left:158px;right:auto;top:22%;background:#f7efe08c}
 }
 @media(min-width:621px) and (max-width:800px){.slip-colors{left:146px}}
+
+/* Continuous studio backdrop on desktop as well as mobile. */
+.room-floor{display:none}
+.work-surface{background:linear-gradient(#d8c4a8,#eddcc1 60%,#cfb38d)}
+
+/* Restore the floor as room scenery; keep touch gestures on the clay. */
+.room-floor{display:block}
+.studio{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}

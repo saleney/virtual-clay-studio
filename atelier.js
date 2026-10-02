@@ -227,7 +227,16 @@ function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('hand');stageNote.textContent='touch the turning ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
-function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=matchMedia('(max-width:620px)').matches?43:(camera.aspect<1.4?44:34);camera.updateProjectionMatrix();renderFinishedShelves();}
+function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=matchMedia('(max-width:620px)').matches?43:(camera.aspect<1.4?44:34);camera.updateProjectionMatrix();
+  if(matchMedia('(max-width:620px)').matches){
+    // Frame the stationary pan to the phone width, regardless of screen height.
+    setCamera();camera.updateMatrixWorld();let minX=Infinity,maxX=-Infinity;
+    for(let i=0;i<96;i++){const a=i*Math.PI*2/96;const v=new THREE.Vector3(Math.cos(a)*2.21,-1.5,Math.sin(a)*2.21).project(camera);minX=Math.min(minX,v.x);maxX=Math.max(maxX,v.x);}
+    const projectedWidth=(maxX-minX)*r.width/2;
+    camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(43/2))*projectedWidth/(document.documentElement.clientWidth*.96)));
+    camera.updateProjectionMatrix();
+  }
+  renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
 function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
@@ -302,7 +311,7 @@ function editProfile(index,radial,vertical){
   rebuildMesh();state.strokeChanged=true;
 }
 function moveContact(clientX,clientY,active){
-  if(!contact)return;const r=renderer.domElement.getBoundingClientRect();contact.style.left=`${clientX-r.left}px`;contact.style.top=`${clientY-r.top}px`;contact.className=`contact contact--${state.tool}`;contact.classList.toggle('is-active',active);
+  if(!contact)return;const r=surface.getBoundingClientRect();contact.style.left=`${(clientX-r.left)*surface.clientWidth/r.width}px`;contact.style.top=`${(clientY-r.top)*surface.clientHeight/r.height}px`;contact.className=`contact contact--${state.tool}`;contact.classList.toggle('is-active',active);
 }
 function outwardScreenDirection(local,clientX,clientY){
   const r=renderer.domElement.getBoundingClientRect();const point=wheelGroup.localToWorld(local.clone());const radial=new THREE.Vector3(local.x,0,local.z).normalize().transformDirection(wheelGroup.matrixWorld);const ahead=point.clone().add(radial.multiplyScalar(.22));
@@ -366,7 +375,7 @@ function widenInterior(amount){
   rebuildMesh();state.strokeChanged=true;
 }
 function onDown(event){
-  renderer.domElement.focus();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
+  if(event.cancelable)event.preventDefault();renderer.domElement.setPointerCapture(event.pointerId);const hit=getHit(event);if(!hit)return;
   if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);return;}
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
   if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&!(hit.object===innerMesh&&radial<rimRadius-.025)&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
