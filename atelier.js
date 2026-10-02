@@ -9,6 +9,8 @@ const fallback = document.querySelector('[data-fallback]');
 const contact = document.querySelector('[data-contact]');
 const phaseNote = document.querySelector('[data-phase-note]');
 let firingTimer, phaseNoteTimer;
+let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
+let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
 const finishedPieces=(()=>{try{const saved=JSON.parse(localStorage.getItem(shelfStorageKey)||'[]');return Array.isArray(saved)?saved.filter(piece=>typeof piece?.id==='string'&&typeof piece.image==='string'&&piece.image.startsWith('data:image/png;base64,')&&piece.image.length<1500000).slice(-6):[];}catch{return [];}})();
 let currentShelfId=null;
@@ -114,6 +116,7 @@ function claySurfaceDetail(ringIndex, segmentIndex) {
 }
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
+  document.querySelector('.clay-amount')?.classList.remove('is-tucked');
   currentShelfId=null;
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
   clearTimeout(firingTimer);clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';
@@ -139,6 +142,7 @@ function joinWrapNormals(meshGeometry, rows) {
   normals.needsUpdate=true;
 }
 function rebuildMesh() {
+  cameraFitPending=true;prepareAlterationAngles();
   if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
   if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
@@ -244,9 +248,34 @@ function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width
     camera.fov=THREE.MathUtils.radToDeg(2*Math.atan(Math.tan(THREE.MathUtils.degToRad(43/2))*projectedWidth/(document.documentElement.clientWidth*.96)));
     camera.updateProjectionMatrix();
   }
+  baseFramingFov=camera.fov;cameraFitPending=true;framingSignature=null;
   renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
-function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
+// Keep taller/wider clay below the header without changing its geometry.
+function fitGrowingClay(){
+  const signature=state.profile.map(r=>`${r.r.toFixed(3)},${r.y.toFixed(3)}`).join(';');
+  if(signature===framingSignature){cameraFitPending=false;return;}
+  framingSignature=signature;
+  const r=stage.getBoundingClientRect(),phone=matchMedia('(max-width:620px)').matches;
+  const header=document.querySelector('.studio-header').getBoundingClientRect();
+  const process=document.querySelector('.process').getBoundingClientRect();
+  const invite=firstInvite.getBoundingClientRect();
+  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom)+12;
+  const tools=document.querySelector('.tool-row').getBoundingClientRect();
+  const controls=document.querySelector('.controls').getBoundingClientRect();
+  const safeBottom=(phone&&tools.height?tools.top:controls.top)-16;
+  const points=[];
+  state.profile.forEach(ring=>{for(let i=0;i<16;i++){const a=i*Math.PI/8;points.push(new THREE.Vector3(Math.cos(a)*(ring.r+.04),ring.y+state.topDome+.03,Math.sin(a)*(ring.r+.04)));}});
+  for(let i=0;i<24;i++){const a=i*Math.PI/12;points.push(new THREE.Vector3(Math.cos(a)*2.21,-1.5,Math.sin(a)*2.21),new THREE.Vector3(Math.cos(a)*1.84,-2.765,Math.sin(a)*1.84));}
+  camera.updateMatrixWorld();
+  for(let fov=baseFramingFov;fov<=100;fov+=.5){
+    camera.fov=fov;camera.updateProjectionMatrix();
+    const fits=points.every(point=>{const p=point.clone().project(camera),x=r.left+(p.x+1)*r.width/2,y=r.top+(1-p.y)*r.height/2;return y>=safeTop&&y<=safeBottom&&x>=2&&x<=document.documentElement.clientWidth-2;});
+    if(fits)break;
+  }
+  cameraFitPending=false;
+}
+function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;
@@ -259,7 +288,43 @@ function getHitAt(clientX,clientY){
 }
 function getHit(event){return getHitAt(event.clientX,event.clientY);}
 function wrappedAngleDistance(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
-function localAlterationAt(y,angle){return state.localAlterations.reduce((total,mark)=>{const height=(y-mark.y)/mark.heightRadius;const arc=wrappedAngleDistance(angle,mark.angle)/mark.angleRadius;const falloff=Math.exp(-.5*(height*height+arc*arc));total.radial+=mark.radialDelta*falloff;total.vertical+=(mark.verticalDelta||0)*falloff;return total;},{radial:0,vertical:0});}
+function prepareAlterationAngles(){
+  const signature=state.localAlterations.map(m=>[m.y,m.angle,m.heightRadius,m.angleRadius,m.radialDelta,m.verticalDelta||0].join(',')).join(';');
+  if(signature===alterationSignature)return;
+  alterationSignature=signature;alterationBands.clear();
+  // Angular weights are shared by all height rings, including the cap and inside.
+  const tau=Math.PI*2;
+  alterationAngles=state.localAlterations.map(mark=>{
+    const center=((mark.angle%tau)+tau)%tau,reach=mark.angleRadius*5.5;
+    const weights=[];
+    const from=reach>=Math.PI?0:Math.ceil((center-reach)/tau*segments);
+    const to=reach>=Math.PI?segments-1:Math.floor((center+reach)/tau*segments);
+    for(let i=from;i<=to;i++){
+      const index=((i%segments)+segments)%segments;
+      const arc=wrappedAngleDistance(index/segments*tau,center)/mark.angleRadius;
+      if(Math.abs(arc)<=5.5)weights.push([index,Math.exp(-.5*arc*arc)]);
+    }
+    return {mark,weights};
+  });
+}
+function localAlterationAt(y,angle){
+  let band=alterationBands.get(y);
+  if(!band){
+    const radial=new Float64Array(segments),vertical=new Float64Array(segments);
+    for(const {mark,weights} of alterationAngles){
+      const height=(y-mark.y)/mark.heightRadius;if(Math.abs(height)>5.5)continue;
+      const falloff=Math.exp(-.5*height*height);
+      const dr=mark.radialDelta*falloff,dv=(mark.verticalDelta||0)*falloff;
+      for(const [index,weight] of weights){radial[index]+=dr*weight;vertical[index]+=dv*weight;}
+    }
+    band={radial,vertical};
+    // Keep recent height samples without retaining every height of a long session.
+    if(alterationBands.size>=256)alterationBands.delete(alterationBands.keys().next().value);
+    alterationBands.set(y,band);
+  }
+  const index=((Math.round(angle/(Math.PI*2)*segments)%segments)+segments)%segments;
+  return {radial:band.radial[index],vertical:band.vertical[index]};
+}
 function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius){
   if(!hit||hit.object!==clay||!state.localAlterations.length)return false;
   const local=wheelGroup.worldToLocal(hit.point.clone());let changed=false;
@@ -528,10 +593,11 @@ function bind(){
   document.querySelectorAll('[data-glaze-color]').forEach(button=>button.addEventListener('click',()=>selectGlazeColor(button.dataset.glazeColor)));document.querySelector('[data-finish]')?.addEventListener('click',finishPiece);document.querySelector('[data-glaze-again]')?.addEventListener('click',()=>{state.phase='glaze';setWheelSpeed(.75);surface.classList.remove('is-complete');status.textContent='The glaze is open again.';});
   const glazeSize=document.querySelector('[data-glaze-size]'),glazeSizeValue=document.querySelector('[data-glaze-size-value]');glazeSize?.addEventListener('input',()=>{state.glazeBrushSize=Number(glazeSize.value);glazeSizeValue.textContent=`${state.glazeBrushSize.toFixed(1)}×`;status.textContent=state.glazeBrushSize>1.4?'A broad glaze brush is ready.':state.glazeBrushSize<.8?'A fine glaze brush is ready.':'The glaze brush is ready.';});
   document.querySelectorAll('[data-clay-amount]').forEach(button=>button.addEventListener('click',()=>{
-    const amount=Number(button.dataset.clayAmount);if(![5,10,15].includes(amount)||amount===state.clayAmount)return;
-    state.clayAmount=amount;makeClay();
+    const amount=Number(button.dataset.clayAmount);if(![5,10,15].includes(amount))return;
+    if(amount!==state.clayAmount){state.clayAmount=amount;makeClay();}
+    document.querySelector('.clay-amount')?.classList.add('is-tucked');
     document.querySelectorAll('[data-clay-amount]').forEach(choice=>choice.setAttribute('aria-pressed',String(Number(choice.dataset.clayAmount)===amount)));
-    status.textContent=`Fresh ${amount} lb clay. More material to shape.`;
+    status.textContent=`${amount} lb clay is ready to shape.`;
   }));
   document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
 }

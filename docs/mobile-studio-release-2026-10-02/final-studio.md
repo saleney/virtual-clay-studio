@@ -12,3 +12,5 @@ Approved by Salene for publication.
 - Touch marker aligned with the pointer; shaping prevents page selection.
 
 Build and whitespace checks passed. Browser previews exercised clay choices, Reset, vertical carving with turning/paused wheel, automatic firing-to-glazing, palette placement, touch alignment, and desktop/mobile wheel framing. Physical-phone testing remains user feedback.
+
+Published commit: `0b7e39fadb92e4edc9a57b8271172737d26de620`. GitHub Pages run `36985752541` succeeded. Live verification confirmed the latest stylesheet, all three clay choices, and the canvas extending to the studio bottom. Final live screenshots: `live-finished-desktop.png`, `live-finished-mobile.png`.
