@@ -25,3 +25,8 @@ The wheel has a separate smooth rotation state and begins turning without an ins
 `atelier.js` loads a fixed Three.js module from jsDelivr. Keep the scene small, preserve the mobile ring/segment reduction, and build future clay features on the radial-profile state rather than replacing it with a heavier framework.
 
 `assets/atelier-background-reggio.png` is the active original cinematic set extension behind the interactive foreground. It establishes the room as a luminous Reggio-inspired atelier: material inquiry, process traces, natural daylight, and thoughtful organization—not a fantasy workshop, dark medieval studio, or generic luxury showroom. Preserve the intimate arm's-length camera composition: it is intentionally a single-view atelier rather than an explorable room. Do not replace it with third-party game imagery or generic decorative assets.
+
+
+## Approved cozy studio release (October 1, 2026)
+
+Salene approved replacing the earlier raster backdrop with SVG shelves and plants. The active scene has a cream wheel and circular rust splash pan. Preserve the new quiet stage interface, automatic fire-to-glaze transition, eight glazes, and browser-local saved PNG gallery. Three.js is bundled in three.module.js; interface.css and interface.js are active web and native-bundle dependencies. Earlier scope/background notes above describe the prior release.

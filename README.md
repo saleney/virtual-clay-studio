@@ -21,3 +21,10 @@ The wheel rotates separately from the profile and starts turning as the atelier 
 ## Visual asset
 
 `assets/atelier-background-reggio-clean.png` is the active refined background plate: a luminous Reggio-inspired atelier with clearer shelf construction, recognizable ceramics and tools, material investigations, process traces, and daylight. It was created for this project with OpenAI image generation; it is not a third-party game asset, photograph, or stock image. `assets/atelier-background-reggio.png` remains as the previous version and `assets/atelier-background.png` remains as the earlier unused dark concept. The wheel, clay, lighting, interaction, and glaze remain rendered in the browser.
+
+
+## Cozy studio release — October 1, 2026
+
+The active web studio uses code-drawn shelves and plants behind the WebGL pottery wheel, with a cream wheel head and stationary circular rust splash pan. Tools and slip appear during throwing; firing automatically advances to glazing. Eight glaze colors are available. Finished PNG captures are kept in this browser (latest six) and shown below the workspace, with image downloads. No account or cloud synchronization. Three.js is bundled as `three.module.js`.
+
+`interface.css` and `interface.js` provide the responsive controls, process indicator and saved-piece gallery. Earlier backdrop assets remain archived in `assets/`; they are no longer displayed. See `docs/cozy-studio-release-2026-10-01/` for release details and screenshots.
