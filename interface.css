@@ -197,3 +197,7 @@
 /* Full-height transparent canvas: navigation overlays the clay without masking it. */
 .three-stage{top:0}
 @media(min-width:621px){.studio-header h1{position:static;width:auto;height:auto;margin:8px 0 0;padding:0;overflow:visible;clip-path:none;white-space:normal}}
+
+@media(max-width:620px){
+ .studio-header h1{position:absolute;top:30px;left:0;width:auto;height:auto;margin:0;padding:0;overflow:visible;clip-path:none;white-space:nowrap;font:normal 10px/1.5 ui-monospace,monospace;color:#4b3827;opacity:.7;background:transparent}
+}
