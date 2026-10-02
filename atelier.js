@@ -8,7 +8,7 @@ const caption = document.querySelector('[data-caption]');
 const fallback = document.querySelector('[data-fallback]');
 const contact = document.querySelector('[data-contact]');
 const phaseNote = document.querySelector('[data-phase-note]');
-let firingTimer, phaseNoteTimer;
+let firingTimer, phaseNoteTimer, carveStrokeId=0;
 let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
 let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
@@ -22,7 +22,8 @@ const materials = {
 };
 const mobile = matchMedia('(max-width:620px)').matches;
 const ringCount = mobile ? 42 : 56;
-const segments = mobile ? 96 : 128;
+const segments = mobile ? 144 : 192;
+const surfaceDetailCache=[];
 const minRadius = .3;
 const minGap = .018;
 const state = {
@@ -106,13 +107,21 @@ function makeClayMaps() {
   const makeTexture=(canvas,isColor=false)=>{const texture=new THREE.CanvasTexture(canvas);texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.ClampToEdgeWrapping;if(isColor)texture.colorSpace=THREE.SRGBColorSpace;return texture;};
   return {color:makeTexture(color,true),roughness:makeTexture(roughness),bump:makeTexture(bump)};
 }
-function claySurfaceDetail(ringIndex, segmentIndex) {
+function computeClaySurfaceDetail(ringIndex, segmentIndex) {
   const t=ringIndex/(ringCount-1); const a=segmentIndex/segments*Math.PI*2;
-  const smooth=1-(state.surfaceSmooth[ringIndex]||0);const throwingRing=Math.sin(t*Math.PI*31+Math.sin(a)*.12+Math.sin(t*11)*.7)*.0018*smooth;
-  const softWobble=(Math.sin(a*3.0+t*7.3)*.005+Math.sin(a*7.0-t*13.1)*.0025)*smooth;
-  const slipStreak=Math.max(0,Math.sin(a*2.0-t*18.0))*Math.max(0,Math.sin(a*5.0+t*5.4))*.003*smooth;
+  const throwingRing=Math.sin(t*Math.PI*31+Math.sin(a)*.12+Math.sin(t*11)*.7)*.0018;
+  const softWobble=(Math.sin(a*3.0+t*7.3)*.005+Math.sin(a*7.0-t*13.1)*.0025);
+  const slipStreak=Math.max(0,Math.sin(a*2.0-t*18.0))*Math.max(0,Math.sin(a*5.0+t*5.4))*.003;
   const moisture=.965+Math.sin(a*3.0+t*19.2)*.018+Math.sin(a*8.0-t*8.7)*.009;
   return {radius:throwingRing+softWobble+slipStreak, moisture};
+}
+function claySurfaceDetail(ringIndex,segmentIndex){
+  // The fine rendering grid stays separate from the original shaping rings.
+  const key=Math.round(ringIndex*2)*(segments+1)+segmentIndex;
+  const detail=surfaceDetailCache[key]||(surfaceDetailCache[key]=computeClaySurfaceDetail(ringIndex,segmentIndex));
+  const lower=Math.floor(ringIndex),upper=Math.min(ringCount-1,lower+1),blend=ringIndex-lower;
+  const smooth=1-THREE.MathUtils.lerp(state.surfaceSmooth[lower]||0,state.surfaceSmooth[upper]||0,blend);
+  return {radius:detail.radius*smooth,moisture:detail.moisture};
 }
 function setWheelSpeed(speed){state.wheel.target=speed;state.wheel.resumeTarget=speed;state.wheel.paused=false;const input=document.querySelector('[data-wheel-speed]');input.value=String(speed);document.querySelector('[data-wheel-speed-value]').textContent=speed.toFixed(1);const toggle=document.querySelector('[data-wheel-toggle]');toggle.textContent='Pause wheel';toggle.setAttribute('aria-pressed','false');}
 function makeClay() {
@@ -149,10 +158,17 @@ function rebuildMesh() {
   // Duplicate the first column at U=1. Each side of the texture join can then
   // sample its own edge instead of interpolating all the way across the canvas.
   const stride=segments+1;
+  // Add an intermediate render ring to soften narrow diagonal cuts, without
+  // changing the control profile, clay amount, or shaping behavior.
+  const renderProfile=state.profile.flatMap((ring,i)=>{
+    if(i===state.profile.length-1)return [ring];
+    const next=state.profile[i+1];return [ring,{y:(ring.y+next.y)/2,r:(ring.r+next.r)/2}];
+  });
+  const renderRows=renderProfile.length;
   const hasOpening=Boolean(state.innerProfile?.length);
   const wallUVHeight=hasOpening?1:.85;
-  state.profile.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r,s===segments?0:s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(ringCount-1)*wallUVHeight);}});
-  for(let r=0;r<ringCount-1;r++) for(let s=0;s<segments;s++){const a=r*stride+s,b=(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,b,d,b,c,d);}
+  renderProfile.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r/2,s===segments?0:s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(renderRows-1)*wallUVHeight);}});
+  for(let r=0;r<renderRows-1;r++) for(let s=0;s<segments;s++){const a=r*stride+s,b=(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,b,d,b,c,d);}
   const bottomIndex=vertices.length/3;
   vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0);
   for(let s=0;s<segments;s++)indices.push(bottomIndex,s+1,s);
@@ -161,7 +177,7 @@ function rebuildMesh() {
   const capRows=8;
   if(!hasOpening){
     const top=state.profile.at(-1);
-    let previous=(ringCount-1)*stride;
+    let previous=(renderRows-1)*stride;
     for(let row=1;row<capRows;row++){
       const t=row/capRows,radial=Math.cos(t*Math.PI/2),rise=Math.sin(t*Math.PI/2);
       const start=vertices.length/3;
@@ -180,8 +196,17 @@ function rebuildMesh() {
     vertices.push(0,top.y+state.topDome,0);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(.5,1);
     for(let s=0;s<segments;s++)indices.push(center,previous+s+1,previous+s);
   }
-  geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3)); geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3)); geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2)); geometry.setIndex(indices); geometry.computeVertexNormals();
-  joinWrapNormals(geometry,ringCount);
+  const oldPosition=geometry.getAttribute('position');
+  if(oldPosition&&oldPosition.array.length===vertices.length){
+    oldPosition.array.set(vertices);oldPosition.needsUpdate=true;
+  }else{
+    geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));
+    geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
+    geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
+    geometry.setIndex(indices);geometry.deleteAttribute('normal');
+  }
+  geometry.computeVertexNormals();
+  joinWrapNormals(geometry,renderRows);
   if(!hasOpening){
     const normals=geometry.getAttribute('normal');
     for(let row=0;row<capRows-1;row++){
@@ -195,13 +220,21 @@ function rebuildMesh() {
 }
 function buildInteriorMesh(){
   const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile,stride=segments+1;
-  for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a);const radius=Math.max(minRadius,top.r+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,1);}
+  for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a),detail=claySurfaceDetail(ringCount-1,s===segments?0:s);const radius=Math.max(minRadius,top.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,1);}
   const innerStart=vertices.length/3;
   inner.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
   for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const a=innerStart+r*stride+s,b=innerStart+(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,d,b,b,d,c);}
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);for(let s=0;s<segments;s++)indices.push(floorCenter,innerStart+s,innerStart+s+1);
   const innerTop=innerStart+(inner.length-1)*stride;for(let s=0;s<segments;s++){const oa=s,ob=s+1,ia=innerTop+s,ib=innerTop+s+1;indices.push(oa,ob,ia,ob,ib,ia);}
   const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+1);
+  // The outer wall and rim are separate meshes, but share continuous lighting.
+  const outerNormals=geometry.getAttribute('normal'),rimNormals=innerGeometry.getAttribute('normal');
+  const outerStart=(state.profile.length-1)*2*stride;
+  for(let s=0;s<=segments;s++){
+    const o=outerStart+s,normal=new THREE.Vector3(outerNormals.getX(o)+rimNormals.getX(s),outerNormals.getY(o)+rimNormals.getY(s),outerNormals.getZ(o)+rimNormals.getZ(s)).normalize();
+    outerNormals.setXYZ(o,normal.x,normal.y,normal.z);rimNormals.setXYZ(s,normal.x,normal.y,normal.z);
+  }
+  outerNormals.needsUpdate=true;rimNormals.needsUpdate=true;
   const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;
   // A tiny warm bounce-light lift keeps the real clay floor readable under its rim.
   innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;
@@ -291,7 +324,7 @@ function getHitAt(clientX,clientY){
 function getHit(event){return getHitAt(event.clientX,event.clientY);}
 function wrappedAngleDistance(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b));}
 function prepareAlterationAngles(){
-  const signature=state.localAlterations.map(m=>[m.y,m.angle,m.heightRadius,m.angleRadius,m.radialDelta,m.verticalDelta||0].join(',')).join(';');
+  const signature=state.localAlterations.map(m=>[m.y,m.angle,m.heightRadius,m.angleRadius,m.radialDelta,m.verticalDelta||0,m.strokeId||0].join(',')).join(';');
   if(signature===alterationSignature)return;
   alterationSignature=signature;alterationBands.clear();
   // Angular weights are shared by all height rings, including the cap and inside.
@@ -312,13 +345,18 @@ function prepareAlterationAngles(){
 function localAlterationAt(y,angle){
   let band=alterationBands.get(y);
   if(!band){
-    const radial=new Float64Array(segments),vertical=new Float64Array(segments);
+    const radial=new Float64Array(segments),vertical=new Float64Array(segments),cuts=new Map();
     for(const {mark,weights} of alterationAngles){
       const height=(y-mark.y)/mark.heightRadius;if(Math.abs(height)>5.5)continue;
       const falloff=Math.exp(-.5*height*height);
       const dr=mark.radialDelta*falloff,dv=(mark.verticalDelta||0)*falloff;
-      for(const [index,weight] of weights){radial[index]+=dr*weight;vertical[index]+=dv*weight;}
+      if(mark.strokeId){
+        let cut=cuts.get(mark.strokeId);if(!cut){cut=new Float64Array(segments);cuts.set(mark.strokeId,cut);}
+        // One knife pass has one depth, regardless of the pointer sample density.
+        for(const [index,weight] of weights)cut[index]=Math.min(cut[index],dr*weight);
+      }else for(const [index,weight] of weights){radial[index]+=dr*weight;vertical[index]+=dv*weight;}
     }
+    for(const cut of cuts.values())for(let i=0;i<segments;i++)radial[i]+=cut[i];
     band={radial,vertical};
     // Keep recent height samples without retaining every height of a long session.
     if(alterationBands.size>=256)alterationBands.delete(alterationBands.keys().next().value);
@@ -391,7 +429,7 @@ function carveVertical(hit){
     const last=state.pointer.lastCarveMark;
     if(last&&Math.abs(last.y-y)<.025&&Math.abs(wrappedAngleDistance(last.angle,angle))<.04)continue;
     if(state.localAlterations.length>=600)break;
-    const mark={y,angle,radialDelta:-.02,heightRadius:.065,angleRadius:.09};
+    const mark={y,angle,radialDelta:-.045,heightRadius:.065,angleRadius:.09,strokeId:state.pointer.carveStrokeId};
     state.localAlterations.push(mark);state.pointer.lastCarveMark=mark;state.strokeChanged=true;
   }
   state.pointer.carvePoint=point;rebuildMesh();
@@ -478,7 +516,7 @@ function onDown(event){
   const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
   // Keep the newly opened interior forgivingly tappable from this elevated view.
   const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
-  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve')state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};moveContact(event.clientX,event.clientY,true);
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(inside?'inside':(upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);return;}
