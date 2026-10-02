@@ -22,3 +22,86 @@
 @media(max-width:620px){.glaze-colors{grid-template-columns:repeat(4,44px);gap:10px 18px}.glaze-tray{right:12px}.glaze-size{width:auto}.glaze-tray{top:142px;gap:8px;padding:10px}.glaze-size input{width:100px}}
 
 @media(max-width:620px){.glaze-tray{background:#f7efe0f2}.work-surface.is-glazing .phase-note{top:341px}}
+
+/* Mobile study: open work surface, quiet controls, full-size touch targets. */
+@media(max-width:620px){
+ .studio{min-height:640px}
+ .studio-header{top:16px}
+ .studio-header h1{font-size:22px;margin-top:10px}
+ .process{left:auto;right:0;top:0;gap:0;opacity:.7;font-size:10px}
+ .process li{display:none;padding-bottom:5px}
+ .process li[aria-current]{display:block}
+ .process li span{display:inline;margin-right:6px;font-size:9px}
+ .process li[aria-current]:after{height:1px;opacity:.5}
+ .tool-row{top:91px;left:18px;right:18px;padding:0;background:transparent;gap:9px}
+ .tool{min-height:44px;height:44px;padding:8px;flex-direction:row;justify-content:center;border-radius:50%;min-width:44px}
+ .tool span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .tool svg{width:26px;height:26px}
+ .tool[aria-pressed=true]{background:#f5eadb66;border-color:#886b493d}
+ .slip-colors{top:143px;left:18px;right:18px;padding:0;background:transparent;gap:8px;justify-content:center}
+ .slip-colors .palette-label{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .slip-color{width:44px;height:44px;min-width:44px;border:9px solid transparent;background-clip:padding-box;box-shadow:none}
+ .slip-color[aria-pressed=true]{outline-offset:-3px}
+ .three-stage{inset:145px -18px 88px}
+ .first-invite{display:none}
+ .mobile-studio-shelf{top:26%;opacity:.38}
+ .controls{bottom:48px;padding:0;background:transparent;flex-wrap:nowrap;gap:6px}
+ .speed-control{flex:0 0 66px;padding:0;gap:0;font-size:0;min-height:44px}
+ .speed-control input{width:66px;margin:0}
+ .speed-readout{display:none}
+ .making-actions{width:auto;flex:1;gap:5px}
+ .making-actions .action{padding:8px 5px;font-size:9px;flex:1}
+ .shelf-link{background:transparent;bottom:5px;font-size:10px}
+ .glaze-tray{top:91px;left:18px;right:18px;padding:0;background:transparent;gap:8px}
+ .glaze-tray .palette-label{display:none}
+ .glaze-colors{grid-template-columns:repeat(4,44px);gap:0 20px}
+ .glaze-color{border:9px solid transparent;background-clip:padding-box;box-shadow:none}
+ .glaze-color[aria-pressed=true]{outline-offset:-3px}
+ .glaze-size{font-size:9px}
+ .work-surface.is-glazing .phase-note,.phase-note{top:203px;font-size:13px}
+}
+
+/* Slip belongs to the brush; other shaping tools keep the surface clear. */
+.slip-colors{display:none}
+.slip-tray:has([data-tool="brush"][aria-pressed="true"]) .slip-colors{display:flex}
+@media(max-width:620px){
+ .studio-header{top:16px}
+ .study-back,.shelf-link{font:10px/1.4 ui-monospace,monospace;color:#665848;background:transparent;text-decoration:none}
+ .study-back{min-height:44px;display:inline-flex;align-items:center;margin-top:-14px}
+ .studio-header h1{margin-top:0}
+ .shelf-link{top:2px;bottom:auto;right:16px;left:auto;transform:none;padding:0;min-height:44px}
+ .process{top:59px}
+ .tool-row{top:106px}
+ .slip-colors{top:157px}
+ .glaze-tray{top:106px}
+ .three-stage{inset:155px -18px 72px}
+ .controls{bottom:20px}
+ .phase-note,.work-surface.is-glazing .phase-note{top:218px}
+}
+
+@media(max-width:620px){
+ .tool-row{justify-content:space-between}
+ .tool{flex:0 0 44px}
+ .speed-control{flex-basis:80px;gap:4px;font-size:8px}
+ .speed-control input{width:48px;min-height:44px}
+ .three-stage{inset:135px -18px 100px}
+}
+
+@media(max-width:620px){.slip-color,.glaze-color{background-clip:padding-box!important}}
+
+@media(max-width:620px){.mobile-studio-shelf{height:124px;top:23%;opacity:.64}.mobile-studio-shelf use{opacity:.92}}
+
+/* Desktop actions share a single baseline, including the shelf. */
+@media(min-width:621px){
+ .controls{right:176px;gap:16px}
+ .speed-control,.action{background:#f7efe08c}
+ .action--fire{background:#66503bc9;border-color:#66503b66}
+ .shelf-link{bottom:48px;left:auto;right:32px;transform:none;min-height:44px;background:#f7efe08c;border:1px solid #a68b6833;font:10px/1.3 ui-monospace,monospace;gap:8px}
+ .shelf-link:hover,.action:hover{background:#f7efe0cc}
+}
+@media(min-width:621px) and (max-width:800px){
+ .controls{right:150px}
+ .speed-control{gap:6px;padding:8px}
+ .speed-control input{width:64px}
+ .shelf-link{right:20px;padding:0 10px}
+}

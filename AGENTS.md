@@ -30,3 +30,6 @@ The wheel has a separate smooth rotation state and begins turning without an ins
 ## Approved cozy studio release (October 1, 2026)
 
 Salene approved replacing the earlier raster backdrop with SVG shelves and plants. The active scene has a cream wheel and circular rust splash pan. Preserve the new quiet stage interface, automatic fire-to-glaze transition, eight glazes, and browser-local saved PNG gallery. Three.js is bundled in three.module.js; interface.css and interface.js are active web and native-bundle dependencies. Earlier scope/background notes above describe the prior release.
+
+## Approved mobile refinement (October 2, 2026)
+The circular pan is now warm stone, with quieter mobile controls, Brush-only slip swatches, a three-plant mobile shelf and larger pottery framing. Preserve the existing browser-local production storage key.

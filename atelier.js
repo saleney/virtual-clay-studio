@@ -61,7 +61,7 @@ function init() {
     [2.09,-1.51],[2.11,-1.46],[2.15,-1.435],[2.19,-1.455],
     [2.21,-1.50],[2.20,-1.85],[2.16,-1.90],[.38,-1.88]
   ].map(([r,y])=>new THREE.Vector2(r,y));
-  const pan=new THREE.Mesh(new THREE.LatheGeometry(panProfile,128),new THREE.MeshStandardMaterial({color:0x9a5038,roughness:.8,side:THREE.DoubleSide}));
+  const pan=new THREE.Mesh(new THREE.LatheGeometry(panProfile,128),new THREE.MeshStandardMaterial({color:0xb4a58c,roughness:.88,side:THREE.DoubleSide}));
   pan.receiveShadow=true;pan.castShadow=true;splashPan.add(pan);
   wheelGroup=new THREE.Group(); scene.add(wheelGroup);
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.45,1.52,.25,72),new THREE.MeshStandardMaterial({color:0xe0ceaf,roughness:.9})); base.position.y=-1.875; base.receiveShadow=true; base.castShadow=true; wheelGroup.add(base);
@@ -225,7 +225,9 @@ function softenSlip(uv){
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('hand');stageNote.textContent='touch the turning ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
-function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=matchMedia('(max-width:620px)').matches?68:(camera.aspect<1.4?46:36);camera.updateProjectionMatrix();renderFinishedShelves();}
+// Keep the pottery at least as prominent as the pre-pan interface; the pan
+// adds surrounding hardware, never a reason to shrink the user's piece.
+function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);camera.aspect=r.width/r.height;camera.fov=matchMedia('(max-width:620px)').matches?58:(camera.aspect<1.4?44:34);camera.updateProjectionMatrix();renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
 function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();applyHeldGlaze();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
