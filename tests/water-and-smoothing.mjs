@@ -24,7 +24,7 @@ state.phase='glaze';ctx.addWater(1,1);assert.equal(ctx.wetness,0);
 console.log('Water: local softening without deformation, distant clay unchanged, full drying and blocked after firing');
 // Identical pressure must move a wet section farther than a dry one.
 ctx.minRadius=.3;ctx.clayAmountScale=()=>1;
-vm.runInContext(['applyRadius','applyHeight'].map(extract).join('\n'),ctx);
+vm.runInContext(['profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','reconcileInterior','outerRadiusAt','applyRadius','applyHeight'].map(extract).join('\n'),ctx);
 for(const operation of ['applyRadius','applyHeight']){
  const field=operation==='applyRadius'?'r':'y',original=state.profile.map(r=>({...r}));
  state.localWetness.fill(0);ctx[operation](20,.01);const dryDelta=state.profile[20][field]-original[20][field];
@@ -47,7 +47,7 @@ for(const tool of ['sponge','rib'])for(const turning of [false,true]){
 console.log('All water and held-smoothing regression checks passed');
 
 ctx.document.querySelectorAll=()=>[];ctx.contact=null;
-vm.runInContext(['onUp','finishStroke','selectTool'].map(extract).join('\n'),ctx);
+vm.runInContext(['onUp','finishStroke','selectTool','rememberAction','updateToolUI'].map(extract).join('\n'),ctx);
 state.before={saved:true};state.strokeChanged=true;state.pointer={id:1};state.history=[];
 ctx.selectTool('water');
 assert.equal(state.pointer,null);assert.equal(state.history.length,1);assert.equal(state.tool,'water');
