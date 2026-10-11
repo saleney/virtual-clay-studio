@@ -1,0 +1,19 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const source=fs.readFileSync(new URL('../atelier.js',import.meta.url),'utf8');
+function extract(name){const start=source.indexOf(`function ${name}(`);assert.ok(start>=0,name);let braces=0,end=source.indexOf('{',start);do{const c=source[end++];if(c==='{')braces++;if(c==='}')braces--;}while(braces);return source.slice(start,end);}
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+for(const rings of [42,56])for(const size of [5,10,15])for(const hollow of [false,true]){
+ const scale=Math.cbrt(size/5),state={profile:Array.from({length:rings},(_,i)=>({y:-1.43+i/(rings-1)*1.4*scale,r:.8*scale})),innerProfile:null};
+ const ctx={THREE:{MathUtils:{clamp,lerp:(a,b,t)=>a+(b-a)*t}},state,ringCount:rings,minGap:.018,minRadius:.3,clayAmountScale:()=>scale,rebuildMesh(){}};
+ vm.createContext(ctx);vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','stabilizeProfile','smoothProfileRadius','profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','applyRadius','applyHeight'].map(extract).join('\n'),ctx);
+ if(hollow)ctx.openClay(.1);
+ const index=Math.floor(rings*.65),volume=ctx.clayVolume(),before=JSON.stringify(state.profile),top=state.profile.at(-1).y,radius=state.profile[index].r;
+ ctx.applyHeight(index,.02);
+ assert.ok(state.profile.at(-1).y>top,'Pulling raises the upper wall');assert.ok(state.profile[index].r<radius,'Pulling narrows the wall');assert.ok(Math.abs(ctx.clayVolume()/volume-1)<.005,'Pulling preserves volume within 0.5%');
+ state.profile=JSON.parse(before);ctx.reconcileInterior();const downRadius=state.profile[index].r,downTop=state.profile.at(-1).y;
+ ctx.applyHeight(index,-.02);assert.ok(state.profile.at(-1).y<downTop,'Pressing settles the upper wall');assert.ok(state.profile[index].r>downRadius,'Pressing spreads clay');
+ for(let i=0;i<120;i++){ctx.applyHeight(index,i<60?.018:-.018);ctx.applyRadius(index,i%2?.01:-.01);assert.equal(state.profile[0].y,-1.43);for(const ring of state.profile)assert.ok(Number.isFinite(ring.y)&&Number.isFinite(ring.r)&&ring.r>=.3);if(hollow)for(const ring of state.innerProfile)assert.ok(ctx.outerRadiusAt(ring.y)-ring.r>=.119999,'Hollow wall retains thickness');}
+ console.log(`${rings} rings, ${size} lb, ${hollow?'open':'solid'}: connected pull/press, conserved volume and stable repeated shaping`);
+}

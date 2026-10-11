@@ -6,7 +6,7 @@ function extract(name){const start=source.indexOf(`function ${name}(`);let brace
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const context={THREE:{MathUtils:{clamp,lerp:(a,b,t)=>a+(b-a)*t}},state:{},rebuildMesh(){},ringCount:42,minGap:.018,minRadius:.3,clayAmountScale:()=>1};
 vm.createContext(context);
-vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','widenInterior','stabilizeProfile','smoothProfileRadius','applyRadius','applyHeight','compressRib'].map(extract).join('\n'),context);
+vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','widenInterior','stabilizeProfile','smoothProfileRadius','profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','applyRadius','applyHeight','compressRib'].map(extract).join('\n'),context);
 for(const size of [5,10,15]){
  const scale=Math.cbrt(size/5);context.clayAmountScale=()=>scale;
  const state=context.state;state.profile=Array.from({length:42},(_,i)=>({y:-1.43+i*.025*scale,r:.8*scale}));
