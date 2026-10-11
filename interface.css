@@ -221,3 +221,7 @@
 @media(max-width:620px){.material-tray{left:16px;right:16px;top:auto;bottom:130px;padding:4px;background:#f7efe0e6;flex-direction:row;justify-content:center;gap:4px}.material-tray .slip-colors{flex-direction:row;gap:0}.material-tray .palette-label{display:none}.material-choice{gap:2px}.material-choice button{min-width:44px;padding:4px;font-size:9px}.material-tray .slip-color{border-width:10px}.process{gap:12px}.process li{font-size:8px}.tool-row{justify-content:space-around}}
 
 @media(max-width:360px){.material-tray{flex-direction:column}.material-tray[data-material="water"]{flex-direction:row}}
+
+/* Keep kiln and glazing messages in the open space above the clay. */
+.phase-note,.work-surface.is-glazing .phase-note{top:clamp(80px,10svh,104px);margin:0;width:max-content;max-width:calc(100% - 32px);text-align:center}
+@media(max-width:620px){.phase-note,.work-surface.is-glazing .phase-note{top:76px}}
