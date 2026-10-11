@@ -15,7 +15,7 @@ const wetClayTint=new THREE.Color(0x89765d), materialColor=new THREE.Color();
 let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
 let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
-const finishedPieces=(()=>{try{const saved=JSON.parse(localStorage.getItem(shelfStorageKey)||'[]');return Array.isArray(saved)?saved.filter(piece=>typeof piece?.id==='string'&&typeof piece.image==='string'&&piece.image.startsWith('data:image/png;base64,')&&piece.image.length<1500000).slice(-6):[];}catch{return [];}})();
+const finishedPieces=(()=>{try{const saved=JSON.parse(localStorage.getItem(shelfStorageKey)||'[]');return Array.isArray(saved)?saved.filter(piece=>typeof piece?.id==='string'&&typeof piece.image==='string'&&piece.image.startsWith('data:image/png;base64,')):[];}catch{return [];}})();
 let currentShelfId=null;
 function showPhaseNote(message, duration=0){clearTimeout(phaseNoteTimer);phaseNote.textContent=message;phaseNote.classList.add('is-visible');if(duration)phaseNoteTimer=setTimeout(()=>phaseNote.classList.remove('is-visible'),duration);}
 const firstInvite = document.querySelector('[data-first-invite]');
@@ -134,7 +134,7 @@ function makeClay() {
   currentShelfId=null;state.pointer=null;state.before=null;state.strokeChanged=false;contact?.classList.remove('is-active');
   setWheelSpeed(matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4);
   clearTimeout(firingTimer);clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';
-  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.localWetness=Array(ringCount).fill(0); state.topDome=.065; state.localAlterations=[]; state.history=[]; state.redo=[];state.undoActions=[];state.redoActions=[];state.waterReturn=null; state.fired=false; state.phase='form'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-firing','is-final-firing','is-glazing','is-complete');document.querySelector('[data-finish]').disabled=false;
+  state.profile=initialProfile(); state.innerProfile=null; state.surfaceSmooth=Array(ringCount).fill(0); state.localWetness=Array(ringCount).fill(0); state.topDome=.065; state.localAlterations=[]; state.history=[]; state.redo=[];state.undoActions=[];state.redoActions=[];state.waterReturn=null; state.fired=false; state.phase='form';stageNote.textContent='touch the spinning clay';caption.textContent='Pull up or sideways to shape. Drag down at the center to open the clay.'; state.glaze={history:[],redo:[],pointer:null,before:null,changed:false}; surface.classList.remove('is-fired','is-firing','is-final-firing','is-glazing','is-complete');document.querySelector('[data-finish]').disabled=false;
   for(const layer of [slipMesh,innerSlipMesh])if(layer)wheelGroup.remove(layer);slipMaterial?.dispose();slipTexture?.dispose();slipMesh=innerSlipMesh=slipMaterial=slipTexture=null;
   if (clay) wheelGroup.remove(clay); geometry=new THREE.BufferGeometry();
   if (innerMesh) { wheelGroup.remove(innerMesh); innerMesh.geometry.dispose(); innerMesh.material.dispose(); innerMesh=null; }
@@ -142,7 +142,7 @@ function makeClay() {
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
   glazeCanvas=glazeContext=glazeTexture=glazeMaterial=null;
   material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.004,metalness:materials[state.material].metalness,clearcoat:.012,clearcoatRoughness:.82,vertexColors:true,side:THREE.FrontSide,flatShading:false});
-  clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); makeGlazeLayer(); updateMaterial(); resetView();updateToolUI();
+  clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); makeGlazeLayer(); updateMaterial(); resetView();selectBrushMaterial('slip');selectTool('hand');
 }
 // UVs need separate vertices at the wrap; lighting needs a shared normal.
 function joinWrapNormals(meshGeometry, rows) {
@@ -644,7 +644,7 @@ function moveContact(clientX,clientY,active){
 }
 function updateToolUI(){
  const form=state.phase==='form',glazing=state.phase==='glaze',editable=form||glazing;
- const hints={hand:'Hands · Pull up to lift; move sideways to shape.',rib:'Rib · Follow the curve; press inward or outward. Center opens downward.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Hold for a band, or move to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
+ const hints={hand:'Hands · Pull up to lift. Drag down at the center to open.',rib:'Rib · Follow the curve; press inward or outward. Center opens downward.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Touch to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
@@ -826,9 +826,10 @@ function placeFinishedPiece(){
  const existing=finishedPieces.find(piece=>piece.id===currentShelfId);
  if(existing)existing.image=snapshot;
  else{currentShelfId=crypto.randomUUID();finishedPieces.push({id:currentShelfId,image:snapshot});}
- if(finishedPieces.length>6)finishedPieces.splice(0,finishedPieces.length-6);
- try{localStorage.setItem(shelfStorageKey,JSON.stringify(finishedPieces));}catch{/* The shelf remains available for this visit if storage is full. */}
- renderFinishedShelves(currentShelfId);
+ let persisted=true;
+ try{localStorage.setItem(shelfStorageKey,JSON.stringify(finishedPieces));}catch{persisted=false;}
+ window.dispatchEvent(new CustomEvent('clay-shelf-update',{detail:{pieces:finishedPieces.map(piece=>({...piece})),persisted}}));
+ renderFinishedShelves(currentShelfId);return persisted;
 }
 function renderFinishedShelves(animateId=null){
  const shelf=document.querySelector('[data-finished-shelves]'),rect=surface.getBoundingClientRect();
@@ -863,7 +864,7 @@ function completePiece(){
  setGlazeFinish(true);applyGlazePooling();
  state.phase='complete';updateToolUI();clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';
  surface.classList.remove('is-firing','is-final-firing');surface.classList.add('is-complete');document.querySelector('[data-finish]').disabled=false;
- setWheelSpeed(.12);placeFinishedPiece();status.textContent='Glaze fired. Your piece is saved on this browser’s shelf.';stageNote.textContent='your finished piece';
+ setWheelSpeed(.12);const persisted=placeFinishedPiece();status.textContent=persisted?'Glaze fired. Your piece is saved on this browser’s shelf.':'Glaze fired. Browser storage is unavailable; save the image from Your shelf to keep it.';if(!persisted)showPhaseNote('Not saved in this browser. Save the image from Your shelf.');stageNote.textContent='your finished piece';
 }
 
 function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);if(key==='ArrowRight')compressRib(middle,24,0);if(key==='ArrowUp')compressRib(middle,0,-24);if(key==='ArrowDown')compressRib(middle,0,24);state.pointer=null;finishStroke();status.textContent='The rib follows your pressure along this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}

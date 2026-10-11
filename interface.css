@@ -269,3 +269,13 @@
 .glaze-selection{font:10px/1.3 ui-monospace,monospace;letter-spacing:.02em}
 .work-surface.is-complete~.bottom-interface .controls .fired-actions,
 .work-surface.is-final-firing~.bottom-interface .controls .fired-actions{display:none}
+
+/* Readable mobile labels without adding controls or a background strip. */
+@media(max-width:620px){
+ .recovery-controls{bottom:184px}
+ .controls .action,.making-actions .action{font-size:11px;line-height:1.2}
+ .speed-control,.recovery-controls button,.tool-row .tool span,.material-choice button,.carve-settings label,.carve-settings summary,.glaze-size{font-size:11px}
+ .tool-hint,.glaze-selection{font-size:11px;line-height:1.4}
+ .clay-amount{font-size:11px}.clay-amount button{font-size:11px}
+ .collection-piece figcaption,.collection-heading a,.collection-footnote{font-size:11px}
+}
