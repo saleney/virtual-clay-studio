@@ -279,3 +279,11 @@
  .clay-amount{font-size:11px}.clay-amount button{font-size:11px}
  .collection-piece figcaption,.collection-heading a,.collection-footnote{font-size:11px}
 }
+
+/* Recovery belongs beside the tools, away from a tall mound. */
+@media(min-width:621px){
+ .recovery-controls{top:calc(22% + 306px);bottom:auto;left:26px;transform:none}
+}
+@media(min-width:621px) and (max-width:800px){
+ .recovery-controls{left:14px;flex-direction:column;gap:2px}
+}

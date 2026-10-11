@@ -425,8 +425,9 @@ function fitGrowingClay(){
   const header=document.querySelector('.studio-header').getBoundingClientRect();
   const process=document.querySelector('.process').getBoundingClientRect();
   const invite=firstInvite.getBoundingClientRect();
-  const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect(),recovery=document.querySelector('.recovery-controls')?.getBoundingClientRect();
-  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom,(hint&&hint.top<header.bottom+100?hint.bottom:0),phone?0:recovery?.bottom||0)+12;
+  const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect();
+  // Side-mounted tools and recovery do not reserve a full-width band above clay.
+  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom,(hint&&hint.top<header.bottom+100?hint.bottom:0))+12;
   const tools=document.querySelector('.tool-row').getBoundingClientRect();
   const controls=document.querySelector('.controls').getBoundingClientRect();
   const safeBottom=(phone&&tools.height?tools.top:controls.top)-16;
