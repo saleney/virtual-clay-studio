@@ -264,3 +264,8 @@
 }
 
 .contact--rib{transform:translate(-50%,-50%) rotate(var(--rib-angle,0deg));}
+
+/* Keep glaze hue legible before firing; only the finish transforms. */
+.glaze-selection{font:10px/1.3 ui-monospace,monospace;letter-spacing:.02em}
+.work-surface.is-complete~.bottom-interface .controls .fired-actions,
+.work-surface.is-final-firing~.bottom-interface .controls .fired-actions{display:none}

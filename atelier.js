@@ -325,7 +325,7 @@ function configureGlazeFinish(){
   shader.uniforms.glazeFired=finishUniform;
   shader.fragmentShader='uniform float glazeFired;\n'+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
-   vec3 chalkyGlaze=mix(vec3(0.79,0.77,0.72),diffuseColor.rgb,0.22);
+   vec3 chalkyGlaze=mix(vec3(0.79,0.77,0.72),diffuseColor.rgb,0.96);
    diffuseColor.rgb=mix(chalkyGlaze,diffuseColor.rgb,glazeFired);`);
  };
  glazeMaterial.customProgramCacheKey=()=> 'chalky-to-fired-glaze-v1';
@@ -393,7 +393,7 @@ function applyHeldSmoothing(dt){
  status.textContent=state.tool==='sponge'?'Smoothing… keep the sponge on the mark.':'The rib gradually smooths the grooves beneath it.';
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
-function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
+function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');selectGlazeColor(state.glazeColor);stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Touch the outside, rim, or inside to brush on glaze.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
 function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);
@@ -602,15 +602,6 @@ function applyCarve(index){
  state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>Math.ceil(3*width))return;const falloff=Math.exp(-(d*d)/(2*(1.15*width)**2));ring.r=Math.max(safeOuterRadius(ring.y),ring.r-.014*depth*falloff);});
  stabilizeProfile();rebuildMesh();state.strokeChanged=true;
 }
-function trimFoot(){
- if(state.phase!=='form'||state.pointer||state.glaze.pointer)return;
- saveBeforeStroke();const floor=state.profile[0].r;
- for(let i=2;i<Math.min(9,state.profile.length);i++){
-  const cut=.035*state.carveDepth*Math.sin((i-1)/8*Math.PI);
-  state.profile[i].r=Math.max(safeOuterRadius(state.profile[i].y),floor*.72,state.profile[i].r-cut);
- }
- stabilizeProfile();rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent='A shallow foot is trimmed beneath the vessel.';
-}
 function compressRib(index,radial,vertical){
   const gesture=state.pointer,source=state.before?.rings;if(!gesture||!source)return;
   // Work from one immutable gesture baseline. Each ring has bounded pressure;
@@ -798,7 +789,7 @@ function fire(){
   const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
   firingTimer=setTimeout(()=>{if(state.phase!=='firing')return;state.fired=true;state.phase='fired';surface.classList.remove('is-firing');surface.classList.add('is-fired');updateMaterial();enterGlaze();showPhaseNote('Ready for glaze',4500);},reduced?500:2400);
 }
-function selectGlazeColor(color){state.glazeColor=color;document.querySelectorAll('[data-glaze-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.glazeColor===color)));status.textContent=`${color[0].toUpperCase()+color.slice(1)} glaze is ready.`;}
+function selectGlazeColor(color){state.glazeColor=color;const selected=document.querySelector(`[data-glaze-color="${color}"]`);const name=selected?.getAttribute('aria-label')?.replace(/ glaze$/,'')||color;document.querySelector('[data-glaze-selection]').textContent=`Glaze · ${name}`;document.querySelectorAll('[data-glaze-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.glazeColor===color)));status.textContent=`${color[0].toUpperCase()+color.slice(1)} glaze is ready.`;}
 
 // Render only the finished clay, using its actual geometry and painted texture.
 // The snapshot is made by our renderer, not an illustration or generated asset.
@@ -894,7 +885,6 @@ function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if
 function selectSlipColor(color){selectBrushMaterial('slip');state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
 function bind(){
  document.querySelector('[data-quick-water]')?.addEventListener('click',quickWater);
- document.querySelector('[data-trim-foot]')?.addEventListener('click',trimFoot);
  for(const [attribute,key] of [['carve-width','carveWidth'],['carve-depth','carveDepth']])document.querySelector(`[data-${attribute}]`)?.addEventListener('input',event=>state[key]=Number(event.target.value));
  document.addEventListener('keydown',event=>{if(!(event.metaKey||event.ctrlKey)||event.target.matches?.('input,textarea'))return;if(event.key.toLowerCase()==='z'){event.preventDefault();event.shiftKey?redo():undo();}else if(event.key.toLowerCase()==='y'){event.preventDefault();redo();}});
 
