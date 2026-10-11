@@ -28,3 +28,13 @@ The wheel rotates separately from the profile and starts turning as the atelier 
 The active web studio uses code-drawn shelves and plants behind the WebGL pottery wheel, with a cream wheel head and stationary circular rust splash pan. Tools and slip appear during throwing; firing automatically advances to glazing. Eight glaze colors are available. Finished PNG captures are kept in this browser (latest six) and shown below the workspace, with image downloads. No account or cloud synchronization. Three.js is bundled as `three.module.js`.
 
 `interface.css` and `interface.js` provide the responsive controls, process indicator and saved-piece gallery. Earlier backdrop assets remain archived in `assets/`; they are no longer displayed. See `docs/cozy-studio-release-2026-10-01/` for release details and screenshots.
+
+## Pottery workflow — October 11, 2026
+
+The tools follow the making sequence: Hands, Rib, Carve, Sponge, Brush. Hands build the form; Rib straightens the outside and can open/widen the center; Carve cuts detail; Sponge softens marks without building a mound. Brush applies Water or Slip before firing, then Glaze afterward.
+
+Water moistens a local height band for about 18 seconds, making the same shaping pressure move that section more readily. Slip is a matte paint layer retained beneath a separate glossy glaze layer. Glaze gets darker in recessed outside geometry and has a subtle surface relief effect; this is a visual approximation, not a fluid simulation.
+
+The two firings read as “Fire it” and “Fire to save.” The second kiln moment saves a PNG to the existing browser-local shelf only after cooling. Reduced motion shortens both kiln moments. Reset cancels a pending firing; Glaze again lets a saved piece be repainted and fired again.
+
+Regression checks: `node tests/rib.test.cjs`, `node tests/interior-stability.mjs`, and `node tests/water-and-smoothing.mjs`. In a Playwright-equipped environment, run `node tests/workflow-browser.cjs` (or set `PLAYWRIGHT_MODULE` to its module path). The browser suite serves the files through intercepted HTTPS requests, uses an isolated QA shelf, and checks 320, 390, 430 and 1280px layouts. It renders the scene once and then explicitly renders screenshots to keep software graphics overhead low; gestures, geometry updates, and firing timers run normally.

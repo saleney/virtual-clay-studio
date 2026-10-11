@@ -2,7 +2,7 @@ const {readFileSync}=require('node:fs');
 const vm=require('node:vm');
 const assert=require('node:assert/strict');
 const source=readFileSync('atelier.js','utf8');
-const functions=['stabilizeProfile','compressRib'].map(name=>source.slice(source.indexOf(`function ${name}(`),source.indexOf('\nfunction ',source.indexOf(`function ${name}(`)+1))).join('\n');
+const functions=['localWorkability','stabilizeProfile','compressRib'].map(name=>source.slice(source.indexOf(`function ${name}(`),source.indexOf('\nfunction ',source.indexOf(`function ${name}(`)+1))).join('\n');
 for(const count of [42,56]){
  const rings=Array.from({length:count},(_,i)=>({y:-1.43+i*.04,r:.8+.065*Math.sin(i*.3)}));
  const middle=Math.floor(count/2);

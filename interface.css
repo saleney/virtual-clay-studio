@@ -209,3 +209,15 @@
 @keyframes water-splash{0%{opacity:0;transform:scale(.35)}20%{opacity:.85}100%{opacity:0;transform:scale(1.25) translateY(12px)}}
 @media(max-width:620px){.tool-row{gap:2px;left:16px;right:16px}.tool-row .tool{min-width:44px}}
 @media(prefers-reduced-motion:reduce){.water-splash{animation:water-splash .15s linear both}}
+
+/* Tools shape; Brush applies the selected material. */
+.material-tray{display:none;position:absolute;z-index:4;left:158px;top:22%;padding:10px;background:#f7efe0b3;border-radius:8px;flex-direction:column;gap:8px;align-items:center}
+.slip-tray:has([data-tool="brush"][aria-pressed="true"]) .material-tray{display:flex}
+.material-choice{display:flex;gap:6px}.material-choice button{min-width:54px;min-height:44px;padding:8px;color:var(--ink);background:transparent;border:1px solid #a5896655;border-radius:5px;font:10px/1.3 ui-monospace,monospace}
+.material-choice button[aria-pressed="true"]{background:#ddd0b6;border-color:#8e563c}
+.material-tray .slip-colors{position:static;background:transparent;padding:0;display:flex;gap:6px}
+.material-tray[data-material="water"] .slip-colors{display:none!important}
+.work-surface.is-firing~.glaze-tray{display:none}.work-surface.is-firing~.bottom-interface .glaze-actions{visibility:hidden}
+@media(max-width:620px){.material-tray{left:16px;right:16px;top:auto;bottom:130px;padding:4px;background:#f7efe0e6;flex-direction:row;justify-content:center;gap:4px}.material-tray .slip-colors{flex-direction:row;gap:0}.material-tray .palette-label{display:none}.material-choice{gap:2px}.material-choice button{min-width:44px;padding:4px;font-size:9px}.material-tray .slip-color{border-width:10px}.process{gap:12px}.process li{font-size:8px}.tool-row{justify-content:space-around}}
+
+@media(max-width:360px){.material-tray{flex-direction:column}.material-tray[data-material="water"]{flex-direction:row}}
