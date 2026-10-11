@@ -591,32 +591,31 @@ function trimFoot(){
  stabilizeProfile();rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent='A shallow foot is trimmed beneath the vessel.';
 }
 function compressRib(index,radial,vertical){
-  // A rigid edge presses a broad wall section toward a straight line in height/radius space.
-  // Use the stroke's original profile so extra pointer events cannot keep shrinking it.
-  if(radial>=0||Math.abs(vertical)>Math.abs(radial)*1.12)return;
-  const gesture=state.pointer;
-  const source=state.before.rings;
-  const halfSpan=Math.max(6,Math.round(source.length*.2));
-  const from=Math.max(1,index-halfSpan),to=Math.min(source.length-1,index+halfSpan);
-  const low=source[from],high=source[to],height=high.y-low.y;
-  if(height<=0)return;
-  gesture.ribPressure=(gesture.ribPressure||0)-radial*localWorkability(index);
-  const strength=1-Math.exp(-gesture.ribPressure/18);
-  const line=ring=>low.r+(high.r-low.r)*(ring.y-low.y)/height;
-  // Move the edge inward enough to touch the hollows as well as the bulges.
-  let inset=0;
-  for(let i=from;i<=to;i++)inset=Math.max(inset,line(source[i])-source[i].r);
-  const compression=Math.min(.06,gesture.ribPressure*.0006);
-  for(let i=from;i<=to;i++){
-    const ring=source[i],t=(ring.y-low.y)/height;
-    const edge=Math.min(1,t/.2,(1-t)/.2);
-    const blend=edge*edge*(3-2*edge)*strength;
-    const target=Math.max(minRadius,line(ring)-inset-compression);
-    state.profile[i].r=ring.r+(target-ring.r)*blend;
-    state.surfaceSmooth[i]=Math.max(state.surfaceSmooth[i],blend);
-  }
+  const gesture=state.pointer,source=state.before?.rings;if(!gesture||!source)return;
+  // Work from one immutable gesture baseline. Each ring has bounded pressure;
+  // event density or retracing cannot repeatedly shrink an already edited wall.
+  gesture.ribOffsets??=Array(source.length).fill(0);
+  gesture.ribSmooth??=Array(source.length).fill(0);
+  const scale=clayAmountScale(),limit=.055*scale;
+  const travel=Math.hypot(radial,vertical),sigma=Math.max(2,source.length*.065);
+  source.forEach((ring,i)=>{
+    if(i===0)return;const distance=i-index;if(Math.abs(distance)>sigma*3)return;
+    const weight=Math.exp(-.5*(distance/sigma)**2);
+    gesture.ribOffsets[i]=THREE.MathUtils.clamp(gesture.ribOffsets[i]+radial*.0018*localWorkability(index)*weight,-limit,limit);
+    gesture.ribSmooth[i]=Math.min(.7,gesture.ribSmooth[i]+travel*.006*weight);
+  });
+  source.forEach((ring,i)=>{
+    if(i===0)return;
+    // Follow the existing curved contour, rather than replacing it with a line.
+    const low=source[Math.max(0,i-2)],high=source[Math.min(source.length-1,i+2)];
+    const contour=low.r*.2+ring.r*.6+high.r*.2;
+    const smoothing=THREE.MathUtils.clamp((contour-ring.r)*gesture.ribSmooth[i],-limit*.3,limit*.3);
+    state.profile[i].r=THREE.MathUtils.clamp(ring.r+gesture.ribOffsets[i]+smoothing,safeOuterRadius(ring.y),Math.min(2.05,1.42*scale));
+    state.surfaceSmooth[i]=Math.max(state.surfaceSmooth[i],gesture.ribSmooth[i]);
+  });
   stabilizeProfile();rebuildMesh();state.strokeChanged=true;
 }
+
 function editProfile(index,radial,vertical){
   // The vessel spins in world space, but its profile remains axisymmetric. Screen motion is
   // therefore mapped to a stable ring index instead of chasing individual rotating vertices.
@@ -633,7 +632,7 @@ function moveContact(clientX,clientY,active){
 }
 function updateToolUI(){
  const form=state.phase==='form',glazing=state.phase==='glaze',editable=form||glazing;
- const hints={hand:'Hands · Pull up to lift; move sideways to shape.',rib:'Rib · Press inward to straighten. Drag down at the center to open.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Hold for a band, or move to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
+ const hints={hand:'Hands · Pull up to lift; move sideways to shape.',rib:'Rib · Follow the curve; press inward or outward. Center opens downward.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Hold for a band, or move to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
@@ -759,10 +758,10 @@ function onMove(event){
     else if(Math.abs(dx)>1){widenInterior(Math.abs(dx)*.0027);status.textContent='The inner floor travels outward; the outside stays steady.';}
   }
   else {
-    if(state.tool==='rib')compressRib(state.pointer.index,radial,dy);
+    if(state.tool==='rib'){const hit=getHit(event);if(hit){state.pointer.index=profileIndexFromHit(hit);compressRib(state.pointer.index,radial,dy);contact?.style.setProperty('--rib-angle',`${Math.atan2(dx,-dy)*180/Math.PI}deg`);}}
     else editProfile(state.pointer.index,radial,dy);
     if(!state.wheel.paused&&state.tool==='hand'&&restoreTowardSymmetry(getHit(event),.07,.28,.58))status.textContent='Your hands gently work this part back toward center.';
-    if(state.tool==='rib'){if(!state.wheel.paused)restoreTowardSymmetry(getHit(event),.18,.34,.7);status.textContent='Press inward to straighten this section of the wall.';}
+    if(state.tool==='rib'){if(!state.wheel.paused)restoreTowardSymmetry(getHit(event),.18,.34,.7);status.textContent='The rib follows your pressure along this section of the wall.';}
   }
   state.pointer.intensity=Math.min(1,Math.hypot(dx,dy)/18);state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);
 }
@@ -854,7 +853,7 @@ function completePiece(){
  setWheelSpeed(.12);placeFinishedPiece();status.textContent='Glaze fired. Your piece is saved on this browser’s shelf.';stageNote.textContent='your finished piece';
 }
 
-function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);state.pointer=null;finishStroke();status.textContent='Press inward to straighten this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
+function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);if(key==='ArrowRight')compressRib(middle,24,0);if(key==='ArrowUp')compressRib(middle,0,-24);if(key==='ArrowDown')compressRib(middle,0,24);state.pointer=null;finishStroke();status.textContent='The rib follows your pressure along this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){
  if(!['form','glaze'].includes(state.phase)||state.pointer||state.glaze.pointer)return;
  const kind=state.undoActions?.pop();if(!kind)return;
@@ -869,7 +868,7 @@ function redo(){
  else{const next=state.redo.pop();state.history.push(cloneProfile());restore(next);}
  state.undoActions.push(kind);status.textContent='One gesture restored.';updateToolUI();
 }
-function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});if(tool!=='brush')state.waterReturn=null;state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:state.phase==='glaze'?'The glaze brush is ready.':state.brushMaterial==='water'?'Brush water onto the clay to soften a section.':'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge softens tool marks and nearby slip.',rib:'Drag down at the center to open, sideways inside to widen, or inward outside to straighten.',water:'Tap the clay to splash a little water.'}[tool];updateToolUI();}
+function selectTool(tool){if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});if(tool!=='brush')state.waterReturn=null;state.tool=tool;document.querySelectorAll('[data-tool]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tool===tool)));status.textContent={hand:'Your hands are back on the clay.',brush:state.phase==='glaze'?'The glaze brush is ready.':state.brushMaterial==='water'?'Brush water onto the clay to soften a section.':'The slip brush is ready.',carve:'Carve back through the slip.',sponge:'The sponge softens tool marks and nearby slip.',rib:'Follow the contour with inward or outward pressure; open downward at the center.',water:'Tap the clay to splash a little water.'}[tool];updateToolUI();}
 function selectSlipColor(color){selectBrushMaterial('slip');state.slipColor=color;document.querySelectorAll('[data-slip-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.slipColor===color)));status.textContent=`${color} slip is ready for the brush.`;}
 function bind(){
  document.querySelector('[data-quick-water]')?.addEventListener('click',quickWater);

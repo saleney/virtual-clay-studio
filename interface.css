@@ -262,3 +262,5 @@
  .work-surface.is-glazing~.tool-hint{bottom:200px}
  .work-surface.is-glazing~.recovery-controls{bottom:226px}
 }
+
+.contact--rib{transform:translate(-50%,-50%) rotate(var(--rib-angle,0deg));}
