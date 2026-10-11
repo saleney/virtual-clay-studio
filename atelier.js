@@ -685,6 +685,7 @@ function onMove(event){
   state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);
 }
 function onUp(event){
+  if(state.pointer?.id===event.pointerId&&state.pointer.mode==='water'){state.pointer=null;contact?.classList.remove('is-active');return;}
   if(state.glaze.pointer?.id===event.pointerId){if(state.glaze.changed){state.glaze.history.push(state.glaze.before);if(state.glaze.history.length>18)state.glaze.history.shift();state.glaze.redo=[];}state.glaze.before=null;state.glaze.pointer=null;return;}
   if(state.pointer?.id===event.pointerId){finishStroke();state.pointer=null;contact?.classList.remove('is-active');}
 }
