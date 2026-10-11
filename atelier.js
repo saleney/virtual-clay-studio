@@ -369,7 +369,7 @@ function applyHeldSmoothing(dt){
  restoreTowardSymmetry(hit,strength,.2,.55,false);
  if(state.tool==='sponge'){applySponge(index);softenSlip(hit.uv);}
  else{state.surfaceSmooth.forEach((amount,i)=>{const distance=(i-index)/Math.max(6,ringCount*.2);state.surfaceSmooth[i]=Math.min(1,amount+strength*Math.exp(-distance*distance*2));});rebuildMesh();state.strokeChanged=true;}
- status.textContent=state.tool==='sponge'?'The sponge gently softens the grooves beneath it.':'The rib gradually smooths the grooves beneath it.';
+ status.textContent=state.tool==='sponge'?'Smoothing… keep the sponge on the mark.':'The rib gradually smooths the grooves beneath it.';
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Celadon glaze is ready. Touch the outside, rim, or inside.';}
@@ -405,7 +405,7 @@ function fitGrowingClay(){
   const process=document.querySelector('.process').getBoundingClientRect();
   const invite=firstInvite.getBoundingClientRect();
   const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect(),recovery=document.querySelector('.recovery-controls')?.getBoundingClientRect();
-  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom,hint?.bottom||0,phone?0:recovery?.bottom||0)+12;
+  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom,(hint&&hint.top<header.bottom+100?hint.bottom:0),phone?0:recovery?.bottom||0)+12;
   const tools=document.querySelector('.tool-row').getBoundingClientRect();
   const controls=document.querySelector('.controls').getBoundingClientRect();
   const safeBottom=(phone&&tools.height?tools.top:controls.top)-16;
@@ -466,7 +466,10 @@ function localAlterationAt(y,angle){
         for(const [index,weight] of weights)cut[index]=Math.min(cut[index],dr*weight);
       }else for(const [index,weight] of weights){radial[index]+=dr*weight;vertical[index]+=dv*weight;}
     }
-    for(const cut of cuts.values())for(let i=0;i<segments;i++)radial[i]+=cut[i];
+    // Crossing or retracing cuts never piles several knife depths into a crater.
+    const carved=new Float64Array(segments);
+    for(const cut of cuts.values())for(let i=0;i<segments;i++)carved[i]=Math.min(carved[i],cut[i]);
+    for(let i=0;i<segments;i++)radial[i]+=carved[i];
     band={radial,vertical};
     // Keep recent height samples without retaining every height of a long session.
     if(alterationBands.size>=256)alterationBands.delete(alterationBands.keys().next().value);
@@ -554,8 +557,12 @@ function applySponge(index){
 function carveVertical(hit){
   if(!hit||hit.object!==clay)return;
   const local=wheelGroup.worldToLocal(hit.point.clone());
-  const point={y:local.y,angle:Math.atan2(local.z,local.x)};
-  const previous=state.pointer.carvePoint||point;
+  const raw={y:local.y,angle:Math.atan2(local.z,local.x)};
+  const previous=state.pointer.carvePoint||raw;
+  // Filter touch jitter; a jump after leaving the surface starts a fresh segment.
+  const jump=Math.abs(raw.y-previous.y)>.45||Math.abs(wrappedAngleDistance(raw.angle,previous.angle))>.8;
+  const point=jump?raw:{y:THREE.MathUtils.lerp(previous.y,raw.y,.65),angle:previous.angle+wrappedAngleDistance(raw.angle,previous.angle)*.65};
+  if(jump){state.pointer.carvePoint=point;state.pointer.lastCarveMark=null;return;}
   const dy=point.y-previous.y,da=wrappedAngleDistance(point.angle,previous.angle);
   const steps=Math.min(24,Math.max(1,Math.ceil(Math.max(Math.abs(dy)/.035,Math.abs(da)/.055))));
   for(let i=1;i<=steps;i++){
@@ -564,7 +571,7 @@ function carveVertical(hit){
     const last=state.pointer.lastCarveMark;
     if(last&&Math.abs(last.y-y)<.025&&Math.abs(wrappedAngleDistance(last.angle,angle))<.04)continue;
     if(state.localAlterations.length>=600)break;
-    const mark={y,angle,radialDelta:-.045*state.carveDepth,heightRadius:.065*state.carveWidth,angleRadius:.09*state.carveWidth,strokeId:state.pointer.carveStrokeId};
+    const mark={y,angle,radialDelta:-.03*state.carveDepth,heightRadius:.08*state.carveWidth,angleRadius:.12*state.carveWidth,strokeId:state.pointer.carveStrokeId};
     state.localAlterations.push(mark);state.pointer.lastCarveMark=mark;state.strokeChanged=true;
   }
   state.pointer.carvePoint=point;rebuildMesh();
@@ -626,7 +633,7 @@ function moveContact(clientX,clientY,active){
 }
 function updateToolUI(){
  const form=state.phase==='form',glazing=state.phase==='glaze',editable=form||glazing;
- const hints={hand:'Hands · Pull up to lift; move sideways to shape.',rib:'Rib · Press inward to straighten. Drag down at the center to open.',carve:'Carve · Drag to cut a groove. Adjust width and depth below.',sponge:'Sponge · Hold on a mark to soften it.',brush:glazing?'Glaze brush · Hold for a band, or move to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
+ const hints={hand:'Hands · Pull up to lift; move sideways to shape.',rib:'Rib · Press inward to straighten. Drag down at the center to open.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Hold for a band, or move to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
@@ -742,7 +749,7 @@ function onMove(event){
   else if(state.pointer.mode==='sponge'){applySponge(state.pointer.index);softenSlip(getHit(event)?.uv);status.textContent='The sponge settles the clay into a softer curve.';}
   else if(state.pointer.mode==='carve'){
     const hit=getHit(event);
-    if(vertical||state.pointer.verticalCarve){state.pointer.verticalCarve=true;carveVertical(hit);status.textContent=state.wheel.paused?'A vertical groove follows your carving tool.':'The turning wheel draws your downward cut into a diagonal groove.';}
+    if(vertical||state.pointer.verticalCarve){state.pointer.verticalCarve=true;carveVertical(hit);status.textContent=state.wheel.paused?'A vertical groove follows your carving tool.':'A shallow spiral follows your cut. Hold the sponge over it to soften.';}
     else{if(hit)applyCarve(profileIndexFromHit(hit));status.textContent='A small groove gathers beneath the carving tool.';}
     carveSlip(hit?.uv);
   }

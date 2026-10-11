@@ -237,3 +237,33 @@
 @media(prefers-reduced-motion:reduce){.contact{transition:none}}
 
 @media(max-width:620px){.clay-amount{bottom:196px}.slip-tray:has([data-tool="carve"][aria-pressed="true"]) .clay-amount{display:none}}
+
+/* Local usability pass: tools explain themselves, advanced cuts stay optional. */
+.material-action{position:absolute;z-index:4;top:128px;left:calc(50% + 78px)}
+.material-action button{min-height:44px;padding:8px 12px;border:1px solid #607f8140;border-radius:5px;background:#b6d7d72b;color:#4d6867;font:10px/1.3 ui-monospace,monospace}
+.recovery-controls{left:calc(50% - 35px)}
+.recovery-controls button{background:transparent}
+.recovery-controls button:disabled{opacity:.35}
+.work-surface.is-firing~.material-action,.work-surface.is-final-firing~.material-action,.work-surface.is-glazing~.material-action,.work-surface.is-complete~.material-action{display:none}
+.tool-hint{top:22%;left:158px;transform:none;width:200px;text-align:left;font-size:10px}
+.carve-settings{top:calc(22% + 70px);padding:0;background:transparent;max-width:260px}
+.carve-settings summary{display:flex;align-items:center;min-height:44px;padding:0 12px;border-radius:5px;background:#f7efe0a6;cursor:pointer;list-style:none;font:10px/1.3 ui-monospace,monospace}
+.carve-settings summary:after{content:'＋';margin-left:12px}.carve-settings[open] summary:after{content:'−'}
+.carve-options{display:flex;flex-direction:column;gap:8px;padding:10px;background:#f7efe0d9;border-radius:5px}
+.carve-settings:not([open]) .carve-options{display:none}
+.carve-settings summary:focus-visible,.material-action button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.making-actions [data-new]{background:transparent;box-shadow:none}
+@media(max-width:620px){
+ .tool-hint{top:auto;bottom:142px;left:16px;right:16px;width:auto;text-align:center;font-size:10px;line-height:1.35}
+ .recovery-controls{top:auto;bottom:170px;left:calc(50% - 40px)}
+ .material-action{top:auto;bottom:170px;left:calc(50% + 46px)}
+ .material-action button{font-size:10px;min-width:82px}
+ .clay-amount{bottom:222px}
+ .carve-settings{top:auto;bottom:222px;left:16px;right:auto;max-width:none;display:none;flex-direction:column;align-items:flex-start}
+ .carve-settings[open]{left:16px;right:16px}
+ .carve-options{width:100%;box-sizing:border-box;flex-direction:row;gap:8px}
+ .carve-options label{flex:1;min-width:0}.carve-options input{width:100%;max-width:90px}
+ .material-tray{bottom:222px}
+ .work-surface.is-glazing~.tool-hint{bottom:200px}
+ .work-surface.is-glazing~.recovery-controls{bottom:226px}
+}
