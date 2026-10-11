@@ -5,8 +5,8 @@ const stages=[...document.querySelectorAll('[data-process]')];
 const grid=document.querySelector('[data-collection-grid]');
 let lastCollection='';
 function updateInterface(){
- const phase=surface.classList.contains('is-complete')?'complete':surface.classList.contains('is-glazing')?'glazing':surface.classList.contains('is-firing')?'firing':'throwing';
- const active=phase==='complete'?'glazing':phase;
+ const phase=surface.classList.contains('is-complete')?'complete':surface.classList.contains('is-final-firing')?'finishing':surface.classList.contains('is-glazing')?'glazing':surface.classList.contains('is-firing')?'firing':'throwing';
+ const active=phase==='complete'?'finishing':phase;
  for(const [i,step] of stages.entries()){
   if(step.dataset.process===active)step.setAttribute('aria-current','step');else step.removeAttribute('aria-current');
   step.classList.toggle('is-past',i<stages.findIndex(s=>s.dataset.process===active));
