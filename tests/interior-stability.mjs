@@ -31,13 +31,15 @@ for(const size of [5,10,15]){
  context.clayAmountScale=()=>Math.cbrt(size/5);
  const state=context.state;state.profile=Array.from({length:42},(_,i)=>({y:-1.43+i*.035,r:.8}));state.innerProfile=null;
  context.openClay(.08);
+ state.before={rings:state.profile.map(r=>({...r}))};state.pointer={};state.surfaceSmooth=Array(42).fill(0);
  const initialY=state.profile[32].y;context.compressRib(32,0,18);
- assert.ok(state.profile[32].y<initialY,'Downward rib drag compresses height');
+ assert.equal(state.profile[32].y,initialY,'Outside rib drag must not shorten the vessel');
  const initialR=state.profile[20].r;context.compressRib(20,-18,0);
  assert.ok(state.profile[20].r<initialR,'Inward rib drag compresses width');
  for(let i=0;i<80;i++){
   const top=state.profile.at(-1).y;
-  context.compressRib(32,-12,18);context.reconcileInterior();
+  state.before={rings:state.profile.map(r=>({...r}))};state.pointer={};
+  context.compressRib(32,-12,0);context.reconcileInterior();
   assert.ok(state.profile.at(-1).y<=top+1e-8,'Compression must not lift the vessel');
   context.openClay(.01);context.widenInterior(.01);context.reconcileInterior();
   assert.equal(state.innerProfile.at(-1).y,state.profile.at(-1).y);
