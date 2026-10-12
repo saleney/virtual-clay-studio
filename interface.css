@@ -303,7 +303,9 @@
 @media(max-width:620px){
  .work-surface.is-glazing .three-stage{transform:translateY(-22px)}
  .glaze-tray .glaze-selection{justify-self:start;display:flex;align-items:center;min-height:44px}
- .work-surface.is-glazing~.recovery-controls{bottom:224px;right:24px;left:auto;transform:none;z-index:5}
+ .work-surface.is-glazing~.recovery-controls{bottom:276px;right:24px;left:auto;transform:none;z-index:5}
  .work-surface.is-glazing~.recovery-controls button{min-width:60px}
 }
 @media(min-width:621px) and (max-width:800px){.glaze-tray .glaze-colors{grid-template-columns:repeat(4,44px)}}
+
+.glaze-finish{display:flex;align-items:center;gap:8px;font:11px monospace;grid-column:1/-1}.glaze-finish select{min-height:44px;color:inherit;background:rgba(255,248,229,.6);border:0;border-radius:8px;padding:0 12px;font:inherit}
