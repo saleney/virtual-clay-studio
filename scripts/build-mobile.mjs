@@ -8,4 +8,4 @@ await cp(resolve(root,"assets"),resolve(out,"assets"),{recursive:true});await cp
 const source=await readFile(resolve(root,"atelier.js"),"utf8");await writeFile(resolve(out,"atelier.js"),source.replace("https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js","./vendor/three.module.js"));
 console.log("Mobile web bundle created in www/");
 
-for(const name of ["interface.css","interface.js","three.module.js"])await cp(resolve(root,name),resolve(out,name));
+for(const name of ["interface.css","interface.js","shelf-store.js","three.module.js"])await cp(resolve(root,name),resolve(out,name));

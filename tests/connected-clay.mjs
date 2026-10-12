@@ -15,5 +15,12 @@ for(const rings of [42,56])for(const size of [5,10,15])for(const hollow of [fals
  state.profile=JSON.parse(before);ctx.reconcileInterior();const downRadius=state.profile[index].r,downTop=state.profile.at(-1).y;
  ctx.applyHeight(index,-.02);assert.ok(state.profile.at(-1).y<downTop,'Pressing settles the upper wall');assert.ok(state.profile[index].r>downRadius,'Pressing spreads clay');
  for(let i=0;i<120;i++){ctx.applyHeight(index,i<60?.018:-.018);ctx.applyRadius(index,i%2?.01:-.01);assert.equal(state.profile[0].y,-1.43);for(const ring of state.profile)assert.ok(Number.isFinite(ring.y)&&Number.isFinite(ring.r)&&ring.r>=.3);if(hollow)for(const ring of state.innerProfile)assert.ok(ctx.outerRadiusAt(ring.y)-ring.r>=.119999,'Hollow wall retains thickness');}
+ if(hollow){
+  ctx.setInterior(.5,.55*scale);const opening=state.innerProfile.at(-1).r;
+  for(let stroke=0;stroke<40;stroke++)ctx.applyRadius(rings-1,-.025);
+  assert.ok(state.innerProfile.at(-1).r<opening,'Inward neck pressure narrows the existing opening');
+  assert.ok(state.innerProfile.at(-1).r>=.018,'Opening cannot invert');
+  for(const ring of state.innerProfile)assert.ok(ctx.outerRadiusAt(ring.y)-ring.r>=.119999,'Narrowed neck retains wall thickness');
+ }
  console.log(`${rings} rings, ${size} lb, ${hollow?'open':'solid'}: connected pull/press, conserved volume and stable repeated shaping`);
 }

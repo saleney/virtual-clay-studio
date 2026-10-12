@@ -1,3 +1,4 @@
+import {loadShelf,saveShelf} from './shelf-store.js';
 import * as THREE from './three.module.js';
 
 const stage = document.querySelector('[data-stage]');
@@ -15,7 +16,7 @@ const wetClayTint=new THREE.Color(0x89765d), materialColor=new THREE.Color();
 let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
 let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
-const finishedPieces=(()=>{try{const saved=JSON.parse(localStorage.getItem(shelfStorageKey)||'[]');return Array.isArray(saved)?saved.filter(piece=>typeof piece?.id==='string'&&typeof piece.image==='string'&&piece.image.startsWith('data:image/png;base64,')):[];}catch{return [];}})();
+const finishedPieces=await loadShelf(shelfStorageKey);
 let currentShelfId=null;
 function showPhaseNote(message, duration=0){clearTimeout(phaseNoteTimer);phaseNote.textContent=message;phaseNote.classList.add('is-visible');if(duration)phaseNoteTimer=setTimeout(()=>phaseNote.classList.remove('is-visible'),duration);}
 const firstInvite = document.querySelector('[data-first-invite]');
@@ -323,16 +324,20 @@ function configureGlazeFinish(){
  const finishUniform={value:0};glazeMaterial.userData.finishUniform=finishUniform;
  glazeMaterial.onBeforeCompile=shader=>{
   shader.uniforms.glazeFired=finishUniform;
-  shader.fragmentShader='uniform float glazeFired;\n'+shader.fragmentShader;
+  shader.uniforms.glazeFootY={value:state.profile[0].y+.008};
+  shader.vertexShader='varying float glazeHeight;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n glazeHeight=position.y;');
+  shader.fragmentShader='uniform float glazeFired; uniform float glazeFootY; varying float glazeHeight;\n'+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+   if(glazeHeight <= glazeFootY) discard;
    vec3 chalkyGlaze=mix(vec3(0.79,0.77,0.72),diffuseColor.rgb,0.96);
    diffuseColor.rgb=mix(chalkyGlaze,diffuseColor.rgb,glazeFired);`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'chalky-to-fired-glaze-v1';
+ glazeMaterial.customProgramCacheKey=()=> 'chalky-to-fired-glaze-v2';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {
-  const size=mobile?256:512; glazeCanvas=document.createElement('canvas'); glazeCanvas.width=glazeCanvas.height=size; glazeContext=glazeCanvas.getContext('2d');
+  const size=512; glazeCanvas=document.createElement('canvas'); glazeCanvas.width=glazeCanvas.height=size; glazeContext=glazeCanvas.getContext('2d');
   glazeTexture=new THREE.CanvasTexture(glazeCanvas); glazeTexture.colorSpace=THREE.SRGBColorSpace; glazeTexture.wrapS=THREE.RepeatWrapping; glazeTexture.wrapT=THREE.ClampToEdgeWrapping;
   glazeMaterial=new THREE.MeshPhysicalMaterial({map:glazeTexture,transparent:true,opacity:1,roughness:state.fired?.24:.8,metalness:0,clearcoat:state.fired?.65:.012,clearcoatRoughness:state.fired?.2:.82,roughnessMap:state.fired?null:clayMaps.roughness,bumpMap:state.fired?glazeTexture:clayMaps.bump,bumpScale:state.fired?.002:.004,depthWrite:false,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});
   if(state.fired)configureGlazeFinish();
@@ -363,10 +368,48 @@ function applyGlazePooling(){
 }
 function snapshotGlaze(){return glazeContext.getImageData(0,0,glazeCanvas.width,glazeCanvas.height);}
 function restoreGlaze(snapshot){glazeContext.putImageData(snapshot,0,0);glazeTexture.needsUpdate=true;}
+const glazeColors={celadon:[112,139,121],honey:[181,139,82],cobalt:[42,75,111],ash:[207,201,181],rose:[185,139,133],plum:[119,100,117],chalk:[236,227,211],moss:[102,110,78]};
+function glazeBrushRadius(){return Math.max(1.5,glazeCanvas.width*.04*state.glazeBrushSize);}
 function paintGlaze(uv,speed=0){
-  if(!uv||!glazeContext)return; const clayHex=materials[state.material].color;const slipColors={clay:[clayHex>>16&255,clayHex>>8&255,clayHex&255],cream:[223,209,184],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]},glazeColors={celadon:[112,139,121],honey:[181,139,82],cobalt:[42,75,111],ash:[207,201,181],rose:[185,139,133],plum:[119,100,117],chalk:[236,227,211],moss:[102,110,78]};const glazing=state.phase==='glaze';const [red,green,blue]=glazing?glazeColors[state.glazeColor]:slipColors[state.slipColor];const size=glazeCanvas.width; const x=uv.x*size; const y=(1-uv.y)*size; const radius=(glazing?(mobile?22:30):(mobile?14:20))*(glazing?state.glazeBrushSize:1); const alpha=glazing?Math.max(.055,.19/(1+speed*.04)):Math.max(.018,.05/(1+speed*.055));
-  [-size,0,size].forEach(offset=>{const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);gradient.addColorStop(0,`rgba(${red}, ${green}, ${blue}, ${alpha})`);gradient.addColorStop(.3,`rgba(${red}, ${green}, ${blue}, ${alpha*.62})`);gradient.addColorStop(.72,`rgba(${red}, ${green}, ${blue}, ${alpha*.14})`);gradient.addColorStop(1,`rgba(${red}, ${green}, ${blue}, 0)`);glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();});
-  glazeTexture.needsUpdate=true;state.glaze.changed=true;
+ if(!uv||!glazeContext)return;
+ const clayHex=materials[state.material].color,slipColors={clay:[clayHex>>16&255,clayHex>>8&255,clayHex&255],cream:[223,209,184],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]};
+ const glazing=state.phase==='glaze',[red,green,blue]=glazing?glazeColors[state.glazeColor]:slipColors[state.slipColor];
+ const size=glazeCanvas.width,x=uv.x*size,y=(1-uv.y)*size,radius=glazing?glazeBrushRadius():(mobile?28:20);
+ const alpha=glazing?.85:Math.max(.018,.05/(1+speed*.055));
+ for(const offset of [-size,0,size]){
+  const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);
+  gradient.addColorStop(0,`rgba(${red},${green},${blue},${alpha})`);
+  gradient.addColorStop(glazing?.75:.3,`rgba(${red},${green},${blue},${alpha*(glazing?1:.62)})`);
+  gradient.addColorStop(1,`rgba(${red},${green},${blue},0)`);
+  glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();
+ }
+ glazeTexture.needsUpdate=true;state.glaze.changed=true;
+}
+// Connect samples across the texture seam, but never bridge a missed hit or
+// a jump between the outside and interior. The same path serves moving wheels.
+function paintGlazeStroke(hit,speed=0){
+ const pointer=state.glaze.pointer;
+ if(!hit?.uv){if(pointer)pointer.lastPaint=null;return;}
+ const previous=pointer?.lastPaint,uv=hit.uv;
+ if(state.phase==='glaze'&&previous&&previous.object===hit.object){
+  let dx=uv.x-previous.x;dx-=Math.round(dx);const dy=uv.y-previous.y;
+  const distance=Math.hypot(dx,dy);
+  if(distance<.25){
+   const steps=Math.min(256,Math.max(1,Math.ceil(distance*glazeCanvas.width/(glazeBrushRadius()*.4))));
+   for(let i=1;i<=steps;i++)paintGlaze({x:(previous.x+dx*i/steps+1)%1,y:previous.y+dy*i/steps},speed);
+  }else paintGlaze(uv,speed);
+ }else paintGlaze(uv,speed);
+ if(pointer)pointer.lastPaint={x:uv.x,y:uv.y,object:hit.object};
+}
+function coatWholePiece(){
+ if(state.phase!=='glaze'||state.glaze.pointer)return;
+ const before=snapshotGlaze();
+ glazeContext.fillStyle=`rgb(${glazeColors[state.glazeColor].join(',')})`;
+ glazeContext.fillRect(0,0,glazeCanvas.width,glazeCanvas.height);
+ glazeTexture.needsUpdate=true;
+ state.glaze.history.push(before);if(state.glaze.history.length>18)state.glaze.history.shift();
+ state.glaze.redo=[];rememberAction('paint');updateToolUI();
+ status.textContent='An even base coat covers the outside, rim and interior. Undo removes it.';
 }
 function carveSlip(uv){
   if(!uv||!glazeContext)return;const size=glazeCanvas.width,x=uv.x*size,y=(1-uv.y)*size,radius=mobile?8:12;glazeContext.save();glazeContext.globalCompositeOperation='destination-out';[-size,0,size].forEach(offset=>{const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);gradient.addColorStop(0,'rgba(0,0,0,.7)');gradient.addColorStop(1,'rgba(0,0,0,0)');glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();});glazeContext.restore();glazeTexture.needsUpdate=true;state.glaze.changed=true;
@@ -392,7 +435,7 @@ function applyHeldSmoothing(dt){
  else{state.surfaceSmooth.forEach((amount,i)=>{const distance=(i-index)/Math.max(6,ringCount*.2);state.surfaceSmooth[i]=Math.min(1,amount+strength*Math.exp(-distance*distance*2));});rebuildMesh();state.strokeChanged=true;}
  status.textContent=state.tool==='sponge'?'Smoothing… keep the sponge on the mark.':'The rib gradually smooths the grooves beneath it.';
 }
-function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);if(hit?.uv)paintGlaze(hit.uv,state.glaze.pointer.speed);}
+function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);paintGlazeStroke(hit,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');selectGlazeColor(state.glazeColor);stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Touch the outside, rim, or inside to brush on glaze.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
@@ -556,9 +599,9 @@ function balanceClayVolume(target,index){
  stabilizeProfile();reconcileInterior();
 }
 function applyRadius(index,amount){
- const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.042,.042),sigma=8.4;
- state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>18||i===0)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,safeOuterRadius(ring.y),Math.min(2.05,1.42*clayAmountScale()));});
- smoothProfileRadius(index);stabilizeProfile();
+ const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.042,.042),sigma=state.profile.length*.15;
+ state.profile.forEach((ring,i)=>{const d=i-index;if(i===0)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
+ smoothProfileRadius(index);stabilizeProfile();reconcileInterior();
  // Wider walls settle; inward pressure lifts the form rather than creating clay.
  const ratio=THREE.MathUtils.clamp(target/clayVolume(),.94,1.06),base=state.profile[0].y;
  state.profile.forEach(ring=>ring.y=base+(ring.y-base)*ratio);
@@ -649,6 +692,7 @@ function updateToolUI(){
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
+ const coat=document.querySelector('[data-coat-glaze]');if(coat)coat.disabled=!glazing;
  const water=document.querySelector('[data-quick-water]');if(water){water.disabled=!form;water.setAttribute?.('aria-pressed',String(!!state.waterReturn));}
 }
 function rememberAction(kind){
@@ -742,7 +786,7 @@ function onDown(event){
   if(event.cancelable)event.preventDefault();const hit=getHit(event);if(!hit)return;renderer.domElement.setPointerCapture(event.pointerId);
   if(state.phase==='form')document.querySelector('.clay-amount')?.classList.add('is-tucked');
   if(state.phase==='form'&&state.tool==='brush'&&state.brushMaterial==='water'){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,mode:'water'};addWater(event.clientX,event.clientY);moveContact(event.clientX,event.clientY,true);return;}
-  if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlaze(hit.uv);moveContact(event.clientX,event.clientY,true);return;}
+  if(state.phase==='glaze'||(state.phase==='form'&&state.tool==='brush')){state.glaze.before=snapshotGlaze();state.glaze.changed=false;state.glaze.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,speed:0};paintGlazeStroke(hit);moveContact(event.clientX,event.clientY,true);return;}
   if(state.phase!=='form')return;const r=renderer.domElement.getBoundingClientRect();const index=profileIndexFromHit(hit);const local=wheelGroup.worldToLocal(hit.point.clone());const top=state.profile.at(-1).y;const radial=Math.hypot(local.x,local.z);const rimRadius=state.innerProfile?.at(-1).r||0;
   if(state.wheel.paused&&state.tool==='hand'&&state.innerProfile&&!(hit.object===innerMesh&&radial<rimRadius-.025)&&local.y>top-.14&&radial>rimRadius-.09){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter-rim',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:top,angle:Math.atan2(local.z,local.x),radialDelta:0,verticalDelta:0,heightRadius:.13,angleRadius:.26}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Lift, lower, flare, or tuck one small section of the rim.';return;}
   if(state.wheel.paused&&state.tool==='hand'&&hit.object===clay&&local.y>state.profile[0].y+.18&&local.y<top-.2){state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,startX:event.clientX,startY:event.clientY,mode:'alter',outward:outwardScreenDirection(local,event.clientX,event.clientY),alteration:{y:local.y,angle:Math.atan2(local.z,local.x),radialDelta:0,heightRadius:.14,angleRadius:.32}};saveBeforeStroke();moveContact(event.clientX,event.clientY,true);status.textContent='Push inward for a dent, or pull outward for a small bulge.';return;}
@@ -753,7 +797,7 @@ function onDown(event){
 }
 function onMove(event){
   if(state.pointer?.id===event.pointerId&&state.pointer.mode==='water'){state.pointer.x=event.clientX;state.pointer.y=event.clientY;addWater(event.clientX,event.clientY);moveContact(event.clientX,event.clientY,true);return;}
-  if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlaze(hit?.uv,state.glaze.pointer.speed);moveContact(event.clientX,event.clientY,true);return;}
+  if(state.glaze.pointer?.id===event.pointerId){const dx=event.clientX-state.glaze.pointer.x,dy=event.clientY-state.glaze.pointer.y;state.glaze.pointer.x=event.clientX;state.glaze.pointer.y=event.clientY;state.glaze.pointer.speed=Math.hypot(dx,dy);const hit=getHitAt(event.clientX,event.clientY);if(state.tool==='carve')carveSlip(hit?.uv);else if(state.tool==='sponge')softenSlip(hit?.uv);else paintGlazeStroke(hit,state.glaze.pointer.speed);moveContact(event.clientX,event.clientY,true);return;}
   if(state.pointer?.id===event.pointerId&&state.phase==='form'&&state.tool==='sponge'){state.pointer.x=event.clientX;state.pointer.y=event.clientY;moveContact(event.clientX,event.clientY,true);return;}
   if(!state.pointer){if(event.pointerType==='mouse')moveContact(event.clientX,event.clientY,true);return;}if(state.phase!=='form'||state.pointer.id!==event.pointerId)return;const rawX=event.clientX-state.pointer.x,rawY=event.clientY-state.pointer.y;const dx=THREE.MathUtils.clamp(rawX,-18,18),dy=THREE.MathUtils.clamp(rawY,-18,18);if(Math.hypot(dx,dy)<2)return;const side=Math.sign(state.pointer.x-state.pointer.axisX)||1;const radial=dx*side;const vertical=Math.abs(dy)>Math.abs(dx)*1.12;
   if(state.pointer.mode==='alter'){const dragX=event.clientX-state.pointer.startX,dragY=event.clientY-state.pointer.startY;const signedDistance=dragX*state.pointer.outward.x+dragY*state.pointer.outward.y;const amount=THREE.MathUtils.clamp(signedDistance*.0019,-.115,.105);if(Math.abs(amount)<.012)return;state.pointer.alteration.radialDelta=amount;if(!state.pointer.alterationSaved){state.localAlterations.push(state.pointer.alteration);state.pointer.alterationSaved=true;}rebuildMesh();state.strokeChanged=true;status.textContent=amount<0?'One small dent stays where your hand left it.':'One small outward pull stays where your hand left it.';}
@@ -822,13 +866,12 @@ function captureFinishedPiece(){
  if(left>right)return canvas.toDataURL('image/png');
  const trimmed=document.createElement('canvas');trimmed.width=right-left+1;trimmed.height=bottom-top+1;trimmed.getContext('2d').drawImage(canvas,left,top,trimmed.width,trimmed.height,0,0,trimmed.width,trimmed.height);return trimmed.toDataURL('image/png');
 }
-function placeFinishedPiece(){
+async function placeFinishedPiece(){
  const snapshot=captureFinishedPiece();
  const existing=finishedPieces.find(piece=>piece.id===currentShelfId);
  if(existing)existing.image=snapshot;
  else{currentShelfId=crypto.randomUUID();finishedPieces.push({id:currentShelfId,image:snapshot});}
- let persisted=true;
- try{localStorage.setItem(shelfStorageKey,JSON.stringify(finishedPieces));}catch{persisted=false;}
+ const persisted=await saveShelf(shelfStorageKey,finishedPieces);
  window.dispatchEvent(new CustomEvent('clay-shelf-update',{detail:{pieces:finishedPieces.map(piece=>({...piece})),persisted}}));
  renderFinishedShelves(currentShelfId);return persisted;
 }
@@ -861,11 +904,11 @@ function finishPiece(){
  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
  firingTimer=setTimeout(()=>{if(state.phase==='final-firing')completePiece();},reduced?500:2400);
 }
-function completePiece(){
+async function completePiece(){
  setGlazeFinish(true);applyGlazePooling();
  state.phase='complete';updateToolUI();clearTimeout(phaseNoteTimer);phaseNote.classList.remove('is-visible');phaseNote.textContent='';
  surface.classList.remove('is-firing','is-final-firing');surface.classList.add('is-complete');document.querySelector('[data-finish]').disabled=false;
- setWheelSpeed(.12);const persisted=placeFinishedPiece();status.textContent=persisted?'Glaze fired. Your piece is saved on this browser’s shelf.':'Glaze fired. Browser storage is unavailable; save the image from Your shelf to keep it.';if(!persisted)showPhaseNote('Not saved in this browser. Save the image from Your shelf.');stageNote.textContent='your finished piece';
+ setWheelSpeed(.12);status.textContent='Saving your fired piece…';const saving=placeFinishedPiece(),savedId=currentShelfId;const persisted=await saving;if(state.phase!=='complete'||currentShelfId!==savedId)return;status.textContent=persisted?'Glaze fired. Your piece is saved on this browser’s shelf.':'Glaze fired. Browser storage is unavailable; save the image from Your shelf to keep it.';if(!persisted)showPhaseNote('Not saved in this browser. Save the image from Your shelf.');stageNote.textContent='your finished piece';
 }
 
 function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);if(key==='ArrowRight')compressRib(middle,24,0);if(key==='ArrowUp')compressRib(middle,0,-24);if(key==='ArrowDown')compressRib(middle,0,24);state.pointer=null;finishStroke();status.textContent='The rib follows your pressure along this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
@@ -906,6 +949,7 @@ function bind(){
   });
   document.querySelector('[data-fire]')?.addEventListener('click',fire); document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze); document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});
   document.querySelectorAll('[data-glaze-color]').forEach(button=>button.addEventListener('click',()=>selectGlazeColor(button.dataset.glazeColor)));document.querySelector('[data-finish]')?.addEventListener('click',finishPiece);document.querySelector('[data-glaze-again]')?.addEventListener('click',()=>{state.phase='glaze';setGlazeFinish(false);setWheelSpeed(.75);surface.classList.remove('is-complete');surface.classList.add('is-glazing');selectTool('brush');status.textContent='The glaze is open again.';});
+  document.querySelector('[data-coat-glaze]')?.addEventListener('click',coatWholePiece);
   const glazeSize=document.querySelector('[data-glaze-size]'),glazeSizeValue=document.querySelector('[data-glaze-size-value]');glazeSize?.addEventListener('input',()=>{state.glazeBrushSize=Number(glazeSize.value);glazeSizeValue.textContent=`${state.glazeBrushSize.toFixed(1)}×`;status.textContent=state.glazeBrushSize>1.4?'A broad glaze brush is ready.':state.glazeBrushSize<.8?'A fine glaze brush is ready.':'The glaze brush is ready.';});
   document.querySelectorAll('[data-clay-amount]').forEach(button=>button.addEventListener('click',()=>{
     const amount=Number(button.dataset.clayAmount);if(![5,10,15].includes(amount))return;

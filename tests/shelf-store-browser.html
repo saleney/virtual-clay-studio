@@ -1,0 +1,21 @@
+<!doctype html><meta charset="utf-8"><title>Shelf storage checks</title><pre id="results">Running IndexedDB tests…</pre><script type="module">
+import {loadShelf,saveShelf} from '../shelf-store.js';
+const key='qa-storage-check-'+crypto.randomUUID(),out=document.querySelector('#results'),checks=[];
+const check=(ok,text)=>{if(!ok)throw Error(text);checks.push(text);};
+try{
+ const old={id:'legacy',image:'data:image/png;base64,bGVnYWN5'};localStorage.setItem(key,JSON.stringify([old]));
+ check((await loadShelf(key))[0].id==='legacy','Existing legacy image migrates');
+ const pieces=Array.from({length:20},(_,i)=>({id:'piece-'+i,image:'data:image/png;base64,'+'A'.repeat(300000)}));
+ check(await saveShelf(key,pieces),'Collection larger than localStorage quota saves');
+ const reloaded=await loadShelf(key);check(reloaded.length===21,'Fresh read restores all images plus legacy');
+ check(localStorage.getItem(key)===JSON.stringify([old]),'Legacy backup stays intact');
+ await Promise.all([saveShelf(key,[{id:'parallel-a',image:old.image}]),saveShelf(key,[{id:'parallel-b',image:old.image}])]);
+ check((await loadShelf(key)).length===23,'Concurrent writes preserve both new pieces');
+ check(await saveShelf(key,[{id:'piece-0',image:old.image}]),'Re-glazing saves');
+ const updated=await loadShelf(key);check(updated.length===23&&updated.find(p=>p.id==='piece-0').image===old.image,'Re-glazing replaces exactly one existing image');
+ localStorage.setItem(key,JSON.stringify([{id:'piece-0',image:'data:image/png;base64,fallback',updatedAt:Date.now()+10000}]));
+ check((await loadShelf(key)).find(p=>p.id==='piece-0').image.endsWith('fallback'),'Newer fallback copy wins over stale database image');
+ out.textContent='PASS\n'+checks.join('\n');out.dataset.passed='true';
+}catch(e){out.textContent='FAIL '+e+'\n'+checks.join('\n');out.dataset.passed='false';}
+finally{localStorage.removeItem(key);const req=indexedDB.open('virtual-clay-studio-collections',1);req.onsuccess=()=>{const db=req.result,tx=db.transaction('shelves','readwrite');tx.objectStore('shelves').delete(key);tx.oncomplete=()=>db.close();};}
+</script>

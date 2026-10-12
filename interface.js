@@ -1,3 +1,4 @@
+import {loadShelf} from './shelf-store.js';
 // Interface layer. The studio scene now uses a floor-standing wheel housing; clay and painting behavior are retained.
 const surface=document.querySelector('[data-surface]');
 const storageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
@@ -11,7 +12,7 @@ function updateInterface(){
   if(step.dataset.process===active)step.setAttribute('aria-current','step');else step.removeAttribute('aria-current');
   step.classList.toggle('is-past',i<stages.findIndex(s=>s.dataset.process===active));
  }
- document.querySelector('.process').setAttribute('aria-label',phase==='complete'?'Pottery process: finished and saved':'Pottery process: '+active);
+ document.querySelector('.process').setAttribute('aria-label',phase==='complete'?'Pottery process: finished':'Pottery process: '+active);
  updateCollection();
 }
 function updateCollection(){
@@ -32,3 +33,5 @@ new MutationObserver(updateInterface).observe(surface,{attributes:true,attribute
 window.addEventListener('clay-shelf-update',event=>{sessionCollection=event.detail.pieces;document.querySelector('.collection-footnote').textContent=event.detail.persisted?'Kept in this browser.':'Some changes are kept only for this visit. Save their images before leaving.';updateCollection();});
 window.addEventListener('storage',updateCollection);window.addEventListener('pageshow',updateCollection);
 updateInterface();
+
+loadShelf(storageKey).then(pieces=>{if(sessionCollection===null){sessionCollection=pieces;updateCollection();}});

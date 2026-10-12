@@ -287,3 +287,23 @@
 @media(min-width:621px) and (max-width:800px){
  .recovery-controls{left:14px;flex-direction:column;gap:2px}
 }
+
+/* Base coating lives beside the brush, without another permanent toolbar. */
+.coat-glaze{min-height:44px;white-space:nowrap;font:11px/1.3 ui-monospace,monospace;padding:8px 12px}
+@media(max-width:620px){
+ .work-surface.is-glazing~.glaze-tray{display:grid;grid-template-columns:1fr 1fr;gap:4px 8px;justify-items:center;padding:6px}
+ .glaze-tray .glaze-selection,.glaze-tray .glaze-colors{grid-column:1 / -1}
+ .glaze-tray .glaze-size{width:auto;gap:4px;flex-wrap:wrap;justify-content:center}
+ .glaze-tray .glaze-size input{width:80px}
+ .coat-glaze{font-size:11px;padding:6px}
+ .work-surface.is-glazing~.recovery-controls{bottom:254px}
+}
+
+@media(max-width:620px){.work-surface.is-glazing~.tool-hint{display:none}}
+@media(max-width:620px){
+ .work-surface.is-glazing .three-stage{transform:translateY(-22px)}
+ .glaze-tray .glaze-selection{justify-self:start;display:flex;align-items:center;min-height:44px}
+ .work-surface.is-glazing~.recovery-controls{bottom:224px;right:24px;left:auto;transform:none;z-index:5}
+ .work-surface.is-glazing~.recovery-controls button{min-width:60px}
+}
+@media(min-width:621px) and (max-width:800px){.glaze-tray .glaze-colors{grid-template-columns:repeat(4,44px)}}
