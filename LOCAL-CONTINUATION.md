@@ -7,3 +7,5 @@ Latest work: docs/glazing-coverage-20261011/README.md and index.html describe te
 Continue with rounded shaping and actual lettering tests, then a separate handle prototype. Preserve existing stable geometry guards. Do not replace real making attempts with injected shapes or present approximations as successful recreations.
 
 User requested saving code, screenshots, tests and handoff before reaching 2% token/context remaining. Checkpoint frequently; an exact token percentage is not available from the workspace.
+
+Base-drag follow-up: low Hands contact now changes footprint as height changes. Contact plane stays fixed; wheel/pan untouched. Connected-clay tests cover all weights/open and solid, footprint direction and volume. Interior, Rib and water/smoothing suites pass. Local only.

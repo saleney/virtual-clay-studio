@@ -9,6 +9,16 @@ for(const rings of [42,56])for(const size of [5,10,15])for(const hollow of [fals
  const ctx={THREE:{MathUtils:{clamp,lerp:(a,b,t)=>a+(b-a)*t}},state,ringCount:rings,minGap:.018,minRadius:.3,clayAmountScale:()=>scale,rebuildMesh(){}};
  vm.createContext(ctx);vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','stabilizeProfile','smoothProfileRadius','profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','applyRadius','applyHeight'].map(extract).join('\n'),ctx);
  if(hollow)ctx.openClay(.1);
+ const initial=JSON.stringify(state.profile),initialInner=JSON.stringify(state.innerProfile);
+ for(const amount of [.02,-.02]){
+  state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);
+  const footprint=state.profile[0].r,volume=ctx.clayVolume();
+  ctx.applyHeight(0,amount);
+  assert.ok(amount>0?state.profile[0].r<footprint:state.profile[0].r>footprint,'Base drag changes the footprint in the expected direction');
+  assert.equal(state.profile[0].y,-1.43,'Contact plane stays on wheel');
+  assert.ok(Math.abs(ctx.clayVolume()/volume-1)<.005,'Base drag preserves clay volume');
+ }
+ state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);
  const index=Math.floor(rings*.65),volume=ctx.clayVolume(),before=JSON.stringify(state.profile),top=state.profile.at(-1).y,radius=state.profile[index].r;
  ctx.applyHeight(index,.02);
  assert.ok(state.profile.at(-1).y>top,'Pulling raises the upper wall');assert.ok(state.profile[index].r<radius,'Pulling narrows the wall');assert.ok(Math.abs(ctx.clayVolume()/volume-1)<.005,'Pulling preserves volume within 0.5%');

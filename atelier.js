@@ -589,18 +589,18 @@ function safeOuterRadius(y){
 function balanceClayVolume(target,index){
  // Redistribute the existing clay, keeping the base anchored and walls supported.
  reconcileInterior();
- const original=state.profile.map(r=>r.r),from=Math.max(1,index-14);
+ const original=state.profile.map(r=>r.r),from=Math.max(1,index-14),basePressure=index<=Math.ceil(state.profile.length*.15);
  let low=.65,high=1.35;
  for(let pass=0;pass<18;pass++){
   const factor=(low+high)/2;
-  state.profile.forEach((ring,i)=>{const t=THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1),weight=t*t*(3-2*t);ring.r=Math.max(safeOuterRadius(ring.y),original[i]*(1+(factor-1)*weight));});
+  state.profile.forEach((ring,i)=>{const t=THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1),weight=basePressure?1:t*t*(3-2*t);ring.r=Math.max(safeOuterRadius(ring.y),original[i]*(1+(factor-1)*weight));});
   if(clayVolume()>target)high=factor;else low=factor;
  }
  stabilizeProfile();reconcileInterior();
 }
 function applyRadius(index,amount){
  const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.042,.042),sigma=state.profile.length*.15;
- state.profile.forEach((ring,i)=>{const d=i-index;if(i===0)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
+ state.profile.forEach((ring,i)=>{const d=i-index;if(i===0&&index>Math.ceil(state.profile.length*.15))return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
  smoothProfileRadius(index);stabilizeProfile();reconcileInterior();
  // Wider walls settle; inward pressure lifts the form rather than creating clay.
  const ratio=THREE.MathUtils.clamp(target/clayVolume(),.94,1.06),base=state.profile[0].y;
@@ -609,7 +609,10 @@ function applyRadius(index,amount){
 }
 function applyHeight(index,amount){
  const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.036,.036),from=Math.max(0,index-14);
- state.profile.forEach((ring,i)=>{if(i===0)return;const t=THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1);ring.y+=limited*t*t*(3-2*t);});
+ const basePressure=index<=Math.ceil(state.profile.length*.15),base=state.profile[0].y,height=state.profile.at(-1).y-base;
+ // Low contact lifts or settles the whole lump: its footprint may change,
+ // while only the contact plane (not the radius) stays anchored to the wheel.
+ state.profile.forEach((ring,i)=>{if(i===0)return;const t=basePressure?(ring.y-base)/Math.max(.001,height):THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1);ring.y+=limited*(basePressure?t:t*t*(3-2*t));});
  stabilizeProfile();balanceClayVolume(target,index);
 }
 function applySponge(index){
