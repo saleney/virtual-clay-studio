@@ -322,7 +322,7 @@ function setGlazeFinish(fired){
 }
 function configureGlazeFinish(){
  const finishUniform={value:0};glazeMaterial.userData.finishUniform=finishUniform;
- const cloudUniform={value:state.glazeFinish==='cloud'?1:0};glazeMaterial.userData.cloudUniform=cloudUniform;
+ const cloudUniform={value:state.glazeEffects?.cloud?1:0};glazeMaterial.userData.cloudUniform=cloudUniform;
  const effects={};
  for(const name of ['pooling','breaking','mottling','speckles','edges','runs'])effects[name]={value:state.glazeEffects?.[name]?1:0};
  effects.intensity={value:state.glazeIntensity??.55};glazeMaterial.userData.effects=effects;
@@ -349,14 +349,14 @@ function configureGlazeFinish(){
    if(glazeCloud*glazeFired>0.5){
     vec3 p=glazePosition*3.0;
     float warp=cloudNoise(p*.7);
-    float cloud=cloudNoise(p+vec3(warp*3.0,warp*1.2,warp*2.0));
+    float cloud=.65*cloudNoise(p+vec3(warp*2.0,warp,warp*1.5))+.35*cloudNoise(p*2.1+vec3(warp));
     float wisp=cloudNoise(p*vec3(2.0,5.0,2.0)+cloud*3.0);
     vec2 drift=vec2((cloud-.5)*.035,(wisp-.5)*.045);
     vec4 nearby=texture2D(map,vMapUv+drift);
     // Only mix painted neighbors; transparent clay must not become black glaze.
-    vec3 melted=mix(diffuseColor.rgb,nearby.rgb,nearby.a*.42);
-    float veil=smoothstep(.43,.78,cloud)*(.12+.16*wisp);
-    diffuseColor.rgb=mix(melted*.94, mix(melted,vec3(.83,.86,.79),.46),veil);
+    vec3 melted=mix(diffuseColor.rgb,nearby.rgb,nearby.a*.22*effect_intensity);
+    float veil=cloud*(.10+.12*wisp)*effect_intensity;
+    diffuseColor.rgb=mix(melted, mix(melted,vec3(.83,.86,.79),.3),veil);
    }
    if(glazeFired>.5){
     float amount=effect_intensity;
@@ -380,7 +380,7 @@ function configureGlazeFinish(){
    }
    #endif`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'reactive-finishes-v4';
+ glazeMaterial.customProgramCacheKey=()=> 'soft-reactive-finishes-v5';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {
@@ -754,7 +754,6 @@ function updateToolUI(){
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
  document.querySelectorAll('[data-glaze-effect]').forEach(input=>{input.checked=!!state.glazeEffects?.[input.dataset.glazeEffect];input.disabled=!glazing;});
- const finishChoice=document.querySelector('[data-glaze-finish]');if(finishChoice){finishChoice.value=state.glazeFinish||'smooth';finishChoice.disabled=!glazing;}
  const coat=document.querySelector('[data-coat-glaze]');if(coat)coat.disabled=!glazing;
  const water=document.querySelector('[data-quick-water]');if(water){water.disabled=!form;water.setAttribute?.('aria-pressed',String(!!state.waterReturn));}
 }
@@ -1013,16 +1012,10 @@ function bind(){
   document.querySelector('[data-fire]')?.addEventListener('click',fire); document.querySelector('[data-glaze]')?.addEventListener('click',enterGlaze); document.querySelector('[data-back]')?.addEventListener('click',()=>{state.fired=false;state.phase='form';surface.classList.remove('is-fired');updateMaterial();status.textContent='Back at the table. The clay is yours again.';});
   document.querySelectorAll('[data-glaze-color]').forEach(button=>button.addEventListener('click',()=>selectGlazeColor(button.dataset.glazeColor)));document.querySelector('[data-finish]')?.addEventListener('click',finishPiece);document.querySelector('[data-glaze-again]')?.addEventListener('click',()=>{state.phase='glaze';setGlazeFinish(false);setWheelSpeed(.75);surface.classList.remove('is-complete');surface.classList.add('is-glazing');selectTool('brush');status.textContent='The glaze is open again.';});
   document.querySelector('[data-coat-glaze]')?.addEventListener('click',coatWholePiece);
-  document.querySelector('[data-glaze-finish]')?.addEventListener('change',event=>{
-   if(state.phase!=='glaze')return;
-   state.glazeFinish=event.target.value;
-   if(glazeMaterial?.userData.cloudUniform)glazeMaterial.userData.cloudUniform.value=state.glazeFinish==='cloud'?1:0;
-   status.textContent=state.glazeFinish==='cloud'?'Cloud finish selected. The wisps emerge in the final firing.':'Smooth finish selected.';
-  });
   document.querySelectorAll('[data-glaze-effect]').forEach(input=>input.addEventListener('change',()=>{
    if(state.phase!=='glaze')return;
    state.glazeEffects??={};state.glazeEffects[input.dataset.glazeEffect]=input.checked;
-   const uniform=glazeMaterial?.userData.effects?.[input.dataset.glazeEffect];if(uniform)uniform.value=input.checked?1:0;
+   const uniform=input.dataset.glazeEffect==='cloud'?glazeMaterial?.userData.cloudUniform:glazeMaterial?.userData.effects?.[input.dataset.glazeEffect];if(uniform)uniform.value=input.checked?1:0;
   }));
   document.querySelector('[data-finish-intensity]')?.addEventListener('input',event=>{
    if(state.phase!=='glaze')return;

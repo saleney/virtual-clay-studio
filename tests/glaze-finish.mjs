@@ -6,7 +6,7 @@ ctx.configureGlazeFinish();assert.equal(mat.roughness,.94);assert.equal(mat.clea
 ctx.setGlazeFinish(true);assert.equal(shader.uniforms.glazeFired.value,1);assert.equal(mat.roughness,.24);assert.equal(mat.clearcoat,.65);
 ctx.setGlazeFinish(false);assert.equal(shader.uniforms.glazeFired.value,0);assert.equal(mat.clearcoat,0);console.log('Glaze preview, fired finish, and re-glazing uniform transitions passed');
 
-ctx.state.glazeFinish="cloud";ctx.configureGlazeFinish();mat.onBeforeCompile(shader);assert.equal(shader.uniforms.glazeCloud.value,1);assert.equal(shader.uniforms.glazeFired.value,0);ctx.setGlazeFinish(true);assert.equal(shader.uniforms.glazeFired.value,1);assert(shader.fragmentShader.includes("glazeCloud*glazeFired"));console.log("Cloud finish is optional and gated by final firing");
+ctx.state.glazeEffects={cloud:true};ctx.configureGlazeFinish();mat.onBeforeCompile(shader);assert.equal(shader.uniforms.glazeCloud.value,1);assert.equal(shader.uniforms.glazeFired.value,0);ctx.setGlazeFinish(true);assert.equal(shader.uniforms.glazeFired.value,1);assert(shader.fragmentShader.includes("glazeCloud*glazeFired"));console.log("Cloud finish is optional and gated by final firing");
 
 ctx.state.glazeEffects={pooling:true,speckles:true};ctx.state.glazeIntensity=.7;ctx.configureGlazeFinish();
 const reactive={uniforms:{},fragmentShader:'#include <map_fragment>',vertexShader:'#include <begin_vertex>'};mat.onBeforeCompile(reactive);
