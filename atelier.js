@@ -639,8 +639,19 @@ function applyHeight(index,amount){
 function applySponge(index){
   state.surfaceSmooth.forEach((amount,i)=>{const d=i-index;if(Math.abs(d)>10)return;const falloff=Math.exp(-(d*d)/(2*4.5*4.5));state.surfaceSmooth[i]=THREE.MathUtils.clamp(amount+.075*falloff,0,1);});
   // Cleanup softens marks without building a new mound.
-  smoothProfileRadius(index,5,1);
-  stabilizeProfile();rebuildMesh();state.strokeChanged=true;
+  // A broad, gentle contact averages the contour across the sponge width.
+  // Adjacent-ring blur alone barely changes wide ridges, even after a long hold.
+  const source=state.profile.map(ring=>ring.r),width=Math.max(3,state.profile.length*.095);
+  state.profile.forEach((ring,i)=>{
+    if(i===0||i===state.profile.length-1)return;
+    const contact=Math.exp(-.5*((i-index)/width)**2);if(contact<.01)return;
+    let sum=0,total=0;
+    for(let j=Math.max(0,Math.floor(i-width*2));j<=Math.min(source.length-1,Math.ceil(i+width*2));j++){
+      const weight=Math.exp(-.5*((j-i)/width)**2);sum+=source[j]*weight;total+=weight;
+    }
+    ring.r=Math.max(safeOuterRadius(ring.y),ring.r+(sum/total-ring.r)*.12*contact);
+  });
+  stabilizeProfile();reconcileInterior();rebuildMesh();state.strokeChanged=true;
 }
 // Moving a carving point vertically on a turning vessel traces a slanted groove.
 function carveVertical(hit){

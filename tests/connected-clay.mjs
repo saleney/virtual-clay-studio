@@ -7,8 +7,17 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 for(const rings of [42,56])for(const size of [5,10,15])for(const hollow of [false,true]){
  const scale=Math.cbrt(size/5),state={profile:Array.from({length:rings},(_,i)=>({y:-1.43+i/(rings-1)*1.4*scale,r:.8*scale})),innerProfile:null};
  const ctx={THREE:{MathUtils:{clamp,lerp:(a,b,t)=>a+(b-a)*t}},state,ringCount:rings,minGap:.018,minRadius:.3,clayAmountScale:()=>scale,rebuildMesh(){}};
- vm.createContext(ctx);vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','stabilizeProfile','smoothProfileRadius','profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','applyRadius','applyHeight'].map(extract).join('\n'),ctx);
+ vm.createContext(ctx);vm.runInContext(['localWorkability','outerRadiusAt','reconcileInterior','interiorInfo','setInterior','openClay','stabilizeProfile','smoothProfileRadius','profileVolume','clayVolume','safeOuterRadius','balanceClayVolume','applyRadius','applyHeight','applySponge'].map(extract).join('\n'),ctx);
  if(hollow)ctx.openClay(.1);
+ state.surfaceSmooth=Array(rings).fill(0);
+ const plain=state.profile.map(r=>({...r})),center=Math.floor(rings*.5);
+ state.profile.forEach((r,i)=>r.r+=.14*Math.exp(-.5*((i-center)/3)**2));
+ const ridge=state.profile[center].r,topRadius=state.profile.at(-1).r;
+ for(let hold=0;hold<100;hold++)ctx.applySponge(center);
+ assert.ok(state.profile[center].r<ridge-.06,'Sustained sponge removes broad ridge');
+ assert.equal(state.profile.at(-1).r,topRadius,'Sponge preserves rim');
+ assert.deepEqual(state.profile.map(r=>r.y),plain.map(r=>r.y),'Sponge cannot stretch vertically');
+ state.profile=plain;
  const initial=JSON.stringify(state.profile),initialInner=JSON.stringify(state.innerProfile);
  for(const amount of [.02,-.02]){
   state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);

@@ -11,3 +11,5 @@ User requested saving code, screenshots, tests and handoff before reaching 2% to
 Base-drag follow-up: low Hands contact now changes footprint as height changes. Contact plane stays fixed; wheel/pan untouched. Connected-clay tests cover all weights/open and solid, footprint direction and volume. Interior, Rib and water/smoothing suites pass. Local only.
 
 Cloud finish prototype: optional Smooth/Cloud selector in glaze tray. Stable object-space noise creates wisps and local painted-color blending only after firing; no geometry deformation. Desktop browser coverage fixture passes, mobile 390px select/fire/save succeeds with no reported shader errors. Real-device performance and richer layered-color trials remain unverified. Sample docs/glazing-coverage-20261011/cloud-finish.png. Still local, no deployment.
+
+October 12: recording shows broad horizontal ridges resist Sponge. Replaced adjacent-ring blur with gentle broader weighted contour averaging under contact. Base/rim excluded, wall minimum enforced, height unchanged. Added sustained broad-ridge reduction tests for both ring counts and clay amounts. Local review only.
