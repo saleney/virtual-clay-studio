@@ -374,13 +374,20 @@ function configureGlazeFinish(){
     vec2 edgeShift=vec2((n-.5)*.024,(cloudNoise(q*2.0)-.5)*.025);
     vec4 edgeColor=texture2D(map,vMapUv+edgeShift);
     diffuseColor.rgb=mix(diffuseColor.rgb,edgeColor.rgb,edgeColor.a*effect_edges*amount*.65);
-    float trail=smoothstep(.55,.78,cloudNoise(vec3(q.x*3.0,0.0,q.z*3.0)));
-    vec4 above=texture2D(map,vMapUv+vec2(0.0,trail*.065*amount));
-    diffuseColor.rgb=mix(diffuseColor.rgb,above.rgb,above.a*trail*effect_runs*amount*.8);
+    // A continuous vertical flow field, with several feathered upstream samples.
+    // Avoid thresholded islands and a single displaced sample (patchy stamps).
+    float trail=.25+.75*cloudNoise(vec3(q.x*1.2,0.0,q.z*1.2));
+    float runDistance=trail*.045*amount;
+    vec4 runNear=texture2D(map,vMapUv+vec2(0.0,runDistance*.33));
+    vec4 runMid=texture2D(map,vMapUv+vec2(0.0,runDistance*.67));
+    vec4 runFar=texture2D(map,vMapUv+vec2(0.0,runDistance));
+    float runWeight=runNear.a*.5+runMid.a*.33+runFar.a*.17;
+    vec3 runColor=(runNear.rgb*runNear.a*.5+runMid.rgb*runMid.a*.33+runFar.rgb*runFar.a*.17)/max(runWeight,.0001);
+    diffuseColor.rgb=mix(diffuseColor.rgb,runColor,runWeight*effect_runs*amount*.55);
    }
    #endif`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'soft-reactive-finishes-v5';
+ glazeMaterial.customProgramCacheKey=()=> 'soft-runs-v6';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {
