@@ -324,7 +324,7 @@ function configureGlazeFinish(){
  const finishUniform={value:0};glazeMaterial.userData.finishUniform=finishUniform;
  const cloudUniform={value:state.glazeEffects?.cloud?1:0};glazeMaterial.userData.cloudUniform=cloudUniform;
  const effects={};
- for(const name of ['pooling','breaking','mottling','speckles','edges','runs'])effects[name]={value:state.glazeEffects?.[name]?1:0};
+ for(const name of ['pooling','breaking','speckles','edges','runs'])effects[name]={value:state.glazeEffects?.[name]?1:0};
  effects.intensity={value:state.glazeIntensity??.55};glazeMaterial.userData.effects=effects;
  glazeMaterial.onBeforeCompile=shader=>{
   for(const [name,uniform] of Object.entries(effects))shader.uniforms['effect_'+name]=uniform;
@@ -335,7 +335,7 @@ function configureGlazeFinish(){
   shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n glazeHeight=position.y; glazePosition=position; glazeRelief=normal.y;');
   shader.fragmentShader=`uniform float glazeFired; uniform float glazeCloud; uniform float glazeFootY;
  varying float glazeHeight; varying vec3 glazePosition; varying float glazeRelief;
- uniform float effect_pooling; uniform float effect_breaking; uniform float effect_mottling;
+ uniform float effect_pooling; uniform float effect_breaking;
  uniform float effect_speckles; uniform float effect_edges; uniform float effect_runs; uniform float effect_intensity;
  float cloudHash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
  float cloudNoise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
@@ -367,7 +367,6 @@ function configureGlazeFinish(){
     float crest=smoothstep(.15,.75,glazeRelief);
     diffuseColor.rgb*=1.0-effect_pooling*amount*pool*.38;
     diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.73,.65,.49),effect_breaking*amount*crest*.36);
-    diffuseColor.rgb=mix(diffuseColor.rgb*.85,mix(diffuseColor.rgb,vec3(.8,.83,.76),.32),effect_mottling*amount*smoothstep(.25,.75,n))*(1.0+.17647*(1.0-effect_mottling*amount));
     vec3 cell=glazePosition*95.0;float grain=cloudHash(floor(cell));
     float dotMask=(1.0-smoothstep(.12,.27,length(fract(cell)-.5)))*step(.88,grain);
     diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.28,dotMask*effect_speckles*amount);
@@ -387,7 +386,7 @@ function configureGlazeFinish(){
    }
    #endif`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'soft-runs-v6';
+ glazeMaterial.customProgramCacheKey=()=> 'no-mottling-v7';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {
