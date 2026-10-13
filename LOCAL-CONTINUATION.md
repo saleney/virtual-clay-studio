@@ -1,3 +1,5 @@
+Release authorization: October 12, 2026 — Salene explicitly requested document, save and deploy. Earlier local-only notes below are historical. Release record: docs/release-20261012/README.md.
+
 # Local continuation — October 11, 2026
 
 Active branch: local/gentle-carving-20261011. Local server is port 8107 at this repository. Production has not been modified or deployed. Salene must review before deployment.
