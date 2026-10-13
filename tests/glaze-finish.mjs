@@ -7,3 +7,9 @@ ctx.setGlazeFinish(true);assert.equal(shader.uniforms.glazeFired.value,1);assert
 ctx.setGlazeFinish(false);assert.equal(shader.uniforms.glazeFired.value,0);assert.equal(mat.clearcoat,0);console.log('Glaze preview, fired finish, and re-glazing uniform transitions passed');
 
 ctx.state.glazeFinish="cloud";ctx.configureGlazeFinish();mat.onBeforeCompile(shader);assert.equal(shader.uniforms.glazeCloud.value,1);assert.equal(shader.uniforms.glazeFired.value,0);ctx.setGlazeFinish(true);assert.equal(shader.uniforms.glazeFired.value,1);assert(shader.fragmentShader.includes("glazeCloud*glazeFired"));console.log("Cloud finish is optional and gated by final firing");
+
+ctx.state.glazeEffects={pooling:true,speckles:true};ctx.state.glazeIntensity=.7;ctx.configureGlazeFinish();
+const reactive={uniforms:{},fragmentShader:'#include <map_fragment>',vertexShader:'#include <begin_vertex>'};mat.onBeforeCompile(reactive);
+assert.equal(reactive.uniforms.effect_pooling.value,1);assert.equal(reactive.uniforms.effect_speckles.value,1);assert.equal(reactive.uniforms.effect_runs.value,0);assert.equal(reactive.uniforms.effect_intensity.value,.7);
+assert.equal(reactive.uniforms.glazeFired.value,0);ctx.setGlazeFinish(true);assert.equal(reactive.uniforms.glazeFired.value,1);
+console.log('Independent reactive effect uniforms and intensity survive firing');

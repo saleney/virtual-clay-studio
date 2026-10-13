@@ -323,14 +323,20 @@ function setGlazeFinish(fired){
 function configureGlazeFinish(){
  const finishUniform={value:0};glazeMaterial.userData.finishUniform=finishUniform;
  const cloudUniform={value:state.glazeFinish==='cloud'?1:0};glazeMaterial.userData.cloudUniform=cloudUniform;
+ const effects={};
+ for(const name of ['pooling','breaking','mottling','speckles','edges','runs'])effects[name]={value:state.glazeEffects?.[name]?1:0};
+ effects.intensity={value:state.glazeIntensity??.55};glazeMaterial.userData.effects=effects;
  glazeMaterial.onBeforeCompile=shader=>{
+  for(const [name,uniform] of Object.entries(effects))shader.uniforms['effect_'+name]=uniform;
   shader.uniforms.glazeFired=finishUniform;
   shader.uniforms.glazeCloud=cloudUniform;
   shader.uniforms.glazeFootY={value:state.profile[0].y+.008};
-  shader.vertexShader='varying float glazeHeight; varying vec3 glazePosition;\n'+shader.vertexShader;
-  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n glazeHeight=position.y; glazePosition=position;');
+  shader.vertexShader='varying float glazeHeight; varying vec3 glazePosition; varying float glazeRelief;\n'+shader.vertexShader;
+  shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n glazeHeight=position.y; glazePosition=position; glazeRelief=normal.y;');
   shader.fragmentShader=`uniform float glazeFired; uniform float glazeCloud; uniform float glazeFootY;
- varying float glazeHeight; varying vec3 glazePosition;
+ varying float glazeHeight; varying vec3 glazePosition; varying float glazeRelief;
+ uniform float effect_pooling; uniform float effect_breaking; uniform float effect_mottling;
+ uniform float effect_speckles; uniform float effect_edges; uniform float effect_runs; uniform float effect_intensity;
  float cloudHash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
  float cloudNoise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.0-2.0*f);
  return mix(mix(mix(cloudHash(i),cloudHash(i+vec3(1,0,0)),f.x),mix(cloudHash(i+vec3(0,1,0)),cloudHash(i+vec3(1,1,0)),f.x),f.y),mix(mix(cloudHash(i+vec3(0,0,1)),cloudHash(i+vec3(1,0,1)),f.x),mix(cloudHash(i+vec3(0,1,1)),cloudHash(i+vec3(1,1,1)),f.x),f.y),f.z);}
@@ -352,9 +358,29 @@ function configureGlazeFinish(){
     float veil=smoothstep(.43,.78,cloud)*(.12+.16*wisp);
     diffuseColor.rgb=mix(melted*.94, mix(melted,vec3(.83,.86,.79),.46),veil);
    }
+   if(glazeFired>.5){
+    float amount=effect_intensity;
+    vec3 q=glazePosition*4.0;
+    float n=cloudNoise(q+cloudNoise(q*.6)*2.5);
+    // Slope-sensitive color concentration; no geometry or paint is altered.
+    float pool=smoothstep(.08,.6,-glazeRelief);
+    float crest=smoothstep(.15,.75,glazeRelief);
+    diffuseColor.rgb*=1.0-effect_pooling*amount*pool*.38;
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.73,.65,.49),effect_breaking*amount*crest*.36);
+    diffuseColor.rgb=mix(diffuseColor.rgb*.85,mix(diffuseColor.rgb,vec3(.8,.83,.76),.32),effect_mottling*amount*smoothstep(.25,.75,n))*(1.0+.17647*(1.0-effect_mottling*amount));
+    vec3 cell=glazePosition*95.0;float grain=cloudHash(floor(cell));
+    float dotMask=(1.0-smoothstep(.12,.27,length(fract(cell)-.5)))*step(.88,grain);
+    diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*.28,dotMask*effect_speckles*amount);
+    vec2 edgeShift=vec2((n-.5)*.024,(cloudNoise(q*2.0)-.5)*.025);
+    vec4 edgeColor=texture2D(map,vMapUv+edgeShift);
+    diffuseColor.rgb=mix(diffuseColor.rgb,edgeColor.rgb,edgeColor.a*effect_edges*amount*.65);
+    float trail=smoothstep(.55,.78,cloudNoise(vec3(q.x*3.0,0.0,q.z*3.0)));
+    vec4 above=texture2D(map,vMapUv+vec2(0.0,trail*.065*amount));
+    diffuseColor.rgb=mix(diffuseColor.rgb,above.rgb,above.a*trail*effect_runs*amount*.8);
+   }
    #endif`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'chalky-to-fired-cloud-v3';
+ glazeMaterial.customProgramCacheKey=()=> 'reactive-finishes-v4';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {
@@ -727,6 +753,8 @@ function updateToolUI(){
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
+ document.querySelectorAll('[data-glaze-effect]').forEach(input=>{input.checked=!!state.glazeEffects?.[input.dataset.glazeEffect];input.disabled=!glazing;});
+ const finishChoice=document.querySelector('[data-glaze-finish]');if(finishChoice){finishChoice.value=state.glazeFinish||'smooth';finishChoice.disabled=!glazing;}
  const coat=document.querySelector('[data-coat-glaze]');if(coat)coat.disabled=!glazing;
  const water=document.querySelector('[data-quick-water]');if(water){water.disabled=!form;water.setAttribute?.('aria-pressed',String(!!state.waterReturn));}
 }
@@ -990,6 +1018,16 @@ function bind(){
    state.glazeFinish=event.target.value;
    if(glazeMaterial?.userData.cloudUniform)glazeMaterial.userData.cloudUniform.value=state.glazeFinish==='cloud'?1:0;
    status.textContent=state.glazeFinish==='cloud'?'Cloud finish selected. The wisps emerge in the final firing.':'Smooth finish selected.';
+  });
+  document.querySelectorAll('[data-glaze-effect]').forEach(input=>input.addEventListener('change',()=>{
+   if(state.phase!=='glaze')return;
+   state.glazeEffects??={};state.glazeEffects[input.dataset.glazeEffect]=input.checked;
+   const uniform=glazeMaterial?.userData.effects?.[input.dataset.glazeEffect];if(uniform)uniform.value=input.checked?1:0;
+  }));
+  document.querySelector('[data-finish-intensity]')?.addEventListener('input',event=>{
+   if(state.phase!=='glaze')return;
+   state.glazeIntensity=Number(event.target.value);
+   if(glazeMaterial?.userData.effects)glazeMaterial.userData.effects.intensity.value=state.glazeIntensity;
   });
   const glazeSize=document.querySelector('[data-glaze-size]'),glazeSizeValue=document.querySelector('[data-glaze-size-value]');glazeSize?.addEventListener('input',()=>{state.glazeBrushSize=Number(glazeSize.value);glazeSizeValue.textContent=`${state.glazeBrushSize.toFixed(1)}×`;status.textContent=state.glazeBrushSize>1.4?'A broad glaze brush is ready.':state.glazeBrushSize<.8?'A fine glaze brush is ready.':'The glaze brush is ready.';});
   document.querySelectorAll('[data-clay-amount]').forEach(button=>button.addEventListener('click',()=>{
