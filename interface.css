@@ -330,9 +330,9 @@
 .finish-effects-panel{max-width:calc(100vw - 48px);box-sizing:border-box}
 @media(min-width:621px){.clay-amount{left:50%;top:auto;bottom:115px;transform:translateX(-50%)}.glaze-tray{max-width:290px}}
 @media(max-width:620px){
- .studio{min-height:1020px!important;height:1020px!important}
- .work-surface{height:670px!important;min-height:0!important;bottom:auto!important}
- .clay-amount{top:680px!important;bottom:auto!important;left:12px!important;right:12px!important;transform:none!important;width:auto!important;max-width:none}
+ .studio{min-height:0!important;height:100svh!important;height:100dvh!important}
+ .work-surface{height:calc(100% - 210px)!important;min-height:0!important;bottom:auto!important}
+ .clay-amount{top:auto!important;bottom:222px!important;left:12px!important;right:12px!important;transform:none!important;width:auto!important;max-width:none}
  .tool-hint{bottom:155px!important}.recovery-controls{bottom:188px!important}
  .glaze-tray{top:auto!important;bottom:90px!important}
  .glaze-colors{grid-template-columns:repeat(8,1fr)!important;width:100%;gap:0!important}
@@ -347,3 +347,21 @@
 .finish-effects-panel{width:340px;gap:8px 12px}
 @media(min-width:621px){.glaze-tray{width:320px;max-width:320px;box-sizing:border-box}.glaze-colors{grid-template-columns:repeat(4,52px)!important;gap:16px!important;justify-items:center}}
 @media(max-width:620px){.finish-effects-panel{width:min(340px,calc(100vw - 32px));max-width:calc(100vw - 32px)}.glaze-tray{left:8px!important;right:8px!important}}
+
+/* Keep the complete mobile workflow inside the browser's visible viewport. */
+@media(max-width:620px){
+ .controls{bottom:max(12px,env(safe-area-inset-bottom))!important}
+ .tool-row{top:auto;bottom:72px}
+ .tool-hint{bottom:134px!important}
+ .recovery-controls{bottom:160px!important}
+ .clay-amount{bottom:206px!important;background:#f7efe0c9;border-radius:8px;padding:4px}
+ .starter-tones button{min-height:44px;flex-direction:row;gap:4px;font-size:10px}
+ .starter-tones button:before{width:14px;height:14px;flex-shrink:0}
+ .work-surface.is-glazing{height:calc(100% - 280px)!important}
+ .glaze-tray{bottom:66px!important}
+ .work-surface.is-glazing~.recovery-controls{bottom:276px!important}
+ .glaze-colors{grid-template-columns:repeat(4,44px)!important;justify-content:space-around;row-gap:0!important}
+ .glaze-color{width:44px;min-width:44px}
+ .glaze-selection{min-height:24px!important}
+ .finish-effects-panel{max-height:calc(100dvh - 100px);overflow-y:auto}
+}
