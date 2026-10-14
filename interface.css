@@ -314,3 +314,36 @@
 @media(max-width:620px){.work-surface.is-glazing~.recovery-controls{bottom:320px}.finish-effects-panel{right:0}}
 
 @media(max-width:620px){.work-surface.is-glazing~.recovery-controls{bottom:268px}}
+
+/* Studio layout: object stays the focus; supporting controls live below. */
+.tool[aria-pressed=true]{box-shadow:0 0 0 2px #856b4e;background:#e5d4b7}
+.clay-amount{flex-wrap:wrap;justify-content:center;max-width:420px}
+.starter-tones{display:flex;width:100%;justify-content:center;gap:6px}
+.starter-tones button{min-width:64px;min-height:60px;display:flex;flex-direction:column;align-items:center;gap:5px;font:11px monospace}
+.starter-tones button:before{content:'';width:22px;height:22px;background:var(--tone);border-radius:50%;border:1px solid #79675166}
+.starter-tones button[aria-pressed=true]{outline:2px solid #8e563c;outline-offset:1px}
+.glaze-selection{font:12px/1.4 monospace;min-height:32px}
+.glaze-colors{display:grid!important;grid-template-columns:repeat(4,44px)!important;gap:12px!important}
+.glaze-color{box-shadow:inset 0 0 8px #32271940,inset 2px 3px 3px #ffffff55}
+.piece-finish{grid-column:1/-1;justify-content:space-between}
+.piece-finish select{min-height:44px;background:#fff8ea;border:1px solid #b29c7d;border-radius:6px;color:inherit;font:12px monospace}
+.finish-effects-panel{max-width:calc(100vw - 48px);box-sizing:border-box}
+@media(min-width:621px){.clay-amount{left:50%;top:auto;bottom:115px;transform:translateX(-50%)}.glaze-tray{max-width:290px}}
+@media(max-width:620px){
+ .studio{min-height:1020px!important;height:1020px!important}
+ .work-surface{height:670px!important;min-height:0!important;bottom:auto!important}
+ .clay-amount{top:680px!important;bottom:auto!important;left:12px!important;right:12px!important;transform:none!important;width:auto!important;max-width:none}
+ .tool-hint{bottom:155px!important}.recovery-controls{bottom:188px!important}
+ .glaze-tray{top:auto!important;bottom:90px!important}
+ .glaze-colors{grid-template-columns:repeat(8,1fr)!important;width:100%;gap:0!important}
+ .glaze-color{width:36px;min-width:36px;height:44px;padding:0}
+ .work-surface.is-glazing~.recovery-controls{bottom:310px!important}
+ .finish-effects-panel{position:fixed;bottom:100px;left:20px;right:20px;width:auto;z-index:30}
+}
+@media(min-width:621px){.studio{height:1050px;min-height:1050px}.work-surface{height:800px}.clay-amount{bottom:125px}.controls{bottom:30px}}
+@media(max-width:620px){.finish-effects-panel{position:absolute;bottom:100%;left:50%;right:auto;transform:translateX(-50%);width:280px}.studio{background:#b69571}.work-surface.is-glazing .three-stage{transform:none}}
+/* Wider palette and customization panel; long clay names wrap safely. */
+.starter-tones button{flex:1;min-width:0;max-width:100px;white-space:normal;line-height:1.25;padding:6px}
+.finish-effects-panel{width:340px;gap:8px 12px}
+@media(min-width:621px){.glaze-tray{width:320px;max-width:320px;box-sizing:border-box}.glaze-colors{grid-template-columns:repeat(4,52px)!important;gap:16px!important;justify-items:center}}
+@media(max-width:620px){.finish-effects-panel{width:min(340px,calc(100vw - 32px));max-width:calc(100vw - 32px)}.glaze-tray{left:8px!important;right:8px!important}}

@@ -21,8 +21,8 @@ let currentShelfId=null;
 function showPhaseNote(message, duration=0){clearTimeout(phaseNoteTimer);phaseNote.textContent=message;phaseNote.classList.add('is-visible');if(duration)phaseNoteTimer=setTimeout(()=>phaseNote.classList.remove('is-visible'),duration);}
 const firstInvite = document.querySelector('[data-first-invite]');
 const materials = {
-  terracotta:{color:0xd1c3ad,roughness:.78,metalness:0}, porcelain:{color:0xc8bcae,roughness:.53,metalness:0},
-  stoneware:{color:0x807667,roughness:.58,metalness:0}, red:{color:0x904332,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
+  terracotta:{color:0xd1c3ad,roughness:.78,metalness:0}, bmix:{color:0xd6ccb9,roughness:.65,metalness:0}, rodsbod:{color:0xa89e8b,roughness:.72,metalness:0}, porcelain:{color:0xe4ded2,roughness:.53,metalness:0},
+  stoneware:{color:0x95816c,roughness:.58,metalness:0}, red:{color:0xb5653d,roughness:.54,metalness:0}, charcoal:{color:0x4d4b49,roughness:.6,metalness:0}
 };
 const mobile = matchMedia('(max-width:620px)').matches;
 const ringCount = mobile ? 42 : 56;
@@ -31,7 +31,7 @@ const surfaceDetailCache=[];
 const minRadius = .3;
 const minGap = .018;
 const state = {
-  clayAmount:5, material:'terracotta', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, localWetness:[], brushMaterial:'slip', tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1, carveWidth:1, carveDepth:1, undoActions:[], redoActions:[], waterReturn:null,
+  clayAmount:5, material:'stoneware', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, localWetness:[], brushMaterial:'slip', tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1, carveWidth:1, carveDepth:1, undoActions:[], redoActions:[], waterReturn:null,
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
   yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, topDome:.065, localAlterations:[], before:null, strokeChanged:false
 };
@@ -316,8 +316,9 @@ function selectBrushMaterial(value){
 function setGlazeFinish(fired){
  if(!glazeMaterial?.userData.finishUniform)return;
  glazeMaterial.userData.finishUniform.value=fired?1:0;
- glazeMaterial.roughness=fired?.24:.94;
- glazeMaterial.clearcoat=fired?.65:0;
+ const finish=({satin:[.43,.3],gloss:[.2,.7],matte:[.78,.04]})[state.pieceFinish||'satin'];
+ glazeMaterial.roughness=fired?finish[0]:.94;
+ glazeMaterial.clearcoat=fired?finish[1]:0;
  glazeMaterial.clearcoatRoughness=fired?.2:.9;
 }
 function configureGlazeFinish(){
@@ -523,10 +524,10 @@ function fitGrowingClay(){
   const invite=firstInvite.getBoundingClientRect();
   const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect();
   // Side-mounted tools and recovery do not reserve a full-width band above clay.
-  const safeTop=Math.max(header.bottom,process.bottom,phone?0:invite.bottom,(hint&&hint.top<header.bottom+100?hint.bottom:0))+12;
+  const safeTop=r.top+100; // Stage layout: framing is independent of document scroll.
   const tools=document.querySelector('.tool-row').getBoundingClientRect();
   const controls=document.querySelector('.controls').getBoundingClientRect();
-  const safeBottom=(phone&&tools.height?tools.top:controls.top)-16;
+  const safeBottom=r.bottom-20;
   const points=[];
   state.profile.forEach(ring=>{for(let i=0;i<16;i++){const a=i*Math.PI/8;points.push(new THREE.Vector3(Math.cos(a)*(ring.r+.04),ring.y+state.topDome+.03,Math.sin(a)*(ring.r+.04)));}});
   for(let i=0;i<24;i++){const a=i*Math.PI/12;points.push(new THREE.Vector3(Math.cos(a)*2.21,-1.5,Math.sin(a)*2.21),new THREE.Vector3(Math.cos(a)*1.84,-2.765,Math.sin(a)*1.84));}
@@ -897,10 +898,24 @@ function onUp(event){
 }
 function restore(snapshot){state.profile=snapshot.rings.map(r=>({...r}));state.innerProfile=snapshot.innerProfile?.map(r=>({...r}))||null;state.surfaceSmooth=snapshot.surfaceSmooth?[...snapshot.surfaceSmooth]:Array(ringCount).fill(0);state.topDome=snapshot.topDome??.065;state.localAlterations=snapshot.localAlterations?.map(mark=>({...mark}))||[];rebuildMesh();}
 function resetView(){state.yaw=-.42;state.pitch=0;}
+// Illustrative, accelerated kiln cycle; these are not firing recipes.
+function runKilnCycle(phase, done){
+ clearTimeout(firingTimer);
+ const peak=phase==='firing'?1000:(state.material==='red'?1100:1220);
+ const steps=[`Kiln · 20°C · Heating (simulated)`,`Kiln · ${Math.round(peak*.6)}°C · Heating`, `Kiln · ${peak}°C · Firing`, 'Kiln · Cooling…'];
+ const delay=matchMedia('(prefers-reduced-motion:reduce)').matches?600:900;
+ let index=0;
+ function next(){
+  if(state.phase!==phase)return;
+  if(index===steps.length){done();return;}
+  showPhaseNote(steps[index++]);
+  firingTimer=setTimeout(next,delay);
+ }
+ next();
+}
 function fire(){
   if(state.phase!=='form')return;if(state.pointer)onUp({pointerId:state.pointer.id});if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});wetness=0;state.localWetness.fill(0);updateWetColors();updateMaterial();completeFirstInvite();state.phase='firing';updateToolUI();state.wheel.resumeTarget=state.wheel.target;state.wheel.target=Math.min(state.wheel.target,.75);surface.classList.add('is-firing');status.textContent='The small kiln warms the piece.';showPhaseNote('Firing…');
-  const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
-  firingTimer=setTimeout(()=>{if(state.phase!=='firing')return;state.fired=true;state.phase='fired';surface.classList.remove('is-firing');surface.classList.add('is-fired');updateMaterial();enterGlaze();showPhaseNote('Ready for glaze',4500);},reduced?500:2400);
+  runKilnCycle('firing',()=>{state.fired=true;state.phase='fired';surface.classList.remove('is-firing');surface.classList.add('is-fired');updateMaterial();enterGlaze();showPhaseNote('Ready for glaze',4500);});
 }
 function selectGlazeColor(color){state.glazeColor=color;const selected=document.querySelector(`[data-glaze-color="${color}"]`);const name=selected?.getAttribute('aria-label')?.replace(/ glaze$/,'')||color;document.querySelector('[data-glaze-selection]').textContent=`Glaze · ${name}`;document.querySelectorAll('[data-glaze-color]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.glazeColor===color)));status.textContent=`${color[0].toUpperCase()+color.slice(1)} glaze is ready.`;}
 
@@ -969,8 +984,7 @@ function finishPiece(){
  document.querySelector('[data-finish]').disabled=true;state.wheel.target=.35;
  status.textContent='The glaze returns to the kiln. Your piece will be saved when it cools.';
  showPhaseNote('Firing the glaze…');
- const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
- firingTimer=setTimeout(()=>{if(state.phase==='final-firing')completePiece();},reduced?500:2400);
+ runKilnCycle('final-firing',completePiece);
 }
 async function completePiece(){
  setGlazeFinish(true);applyGlazePooling();
@@ -1037,3 +1051,13 @@ function bind(){
   }));
   document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
 }
+
+// Starter families and suggested whole-piece glaze finishes.
+const studyGlazes={celadon:['Celadon','satin'],honey:['Honey','gloss'],cobalt:['Deep cobalt','gloss'],ash:['Bone ash','matte'],rose:['Dusty rose','satin'],plum:['Smoked plum','gloss'],chalk:['Chalk','matte'],moss:['Moss green','satin']};
+state.pieceFinish='satin';
+function studySelection(){const [name]=studyGlazes[state.glazeColor];document.querySelector('[data-glaze-selection]').textContent=name+' · Piece finish: '+state.pieceFinish;document.querySelector('[data-piece-finish]').value=state.pieceFinish;}
+for(const b of document.querySelectorAll('[data-glaze-color]')){const [name,finish]=studyGlazes[b.dataset.glazeColor];b.title=name+' · '+finish;b.setAttribute('aria-label',name+' glaze');b.addEventListener('click',()=>{state.pieceFinish=finish;studySelection();});}
+document.querySelector('[data-piece-finish]').addEventListener('change',e=>{state.pieceFinish=e.target.value;studySelection();});
+for(const b of document.querySelectorAll('[data-starter]'))b.addEventListener('click',()=>{if(state.phase!=='form'||document.querySelector('.clay-amount').classList.contains('is-tucked'))return;state.material=b.dataset.starter;updateMaterial();document.querySelectorAll('[data-starter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
+new MutationObserver(()=>{if(surface.classList.contains('is-glazing'))studySelection();}).observe(surface,{attributes:true,attributeFilter:['class']});
+studySelection();
