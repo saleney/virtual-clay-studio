@@ -397,3 +397,7 @@
  .work-surface{height:calc(100% - 100px)}
  .clay-amount{bottom:20px}
 }
+/* Reserve a separate instruction band above the desktop Brush panel. */
+@media(min-width:621px){
+ .material-tray{top:calc(22% + 72px)}
+}
