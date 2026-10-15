@@ -31,7 +31,7 @@ const surfaceDetailCache=[];
 const minRadius = .3;
 const minGap = .018;
 const state = {
-  clayAmount:5, material:'stoneware', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, localWetness:[], brushMaterial:'slip', tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1, carveWidth:1, carveDepth:1, undoActions:[], redoActions:[], waterReturn:null,
+  clayAmount:5, material:'stoneware', fired:false, phase:'form', profile:[], innerProfile:null, surfaceSmooth:[], history:[], redo:[], pointer:null, localWetness:[], brushMaterial:'water', tool:'hand', slipColor:'cream', glazeColor:'celadon', glazeBrushSize:1, glazeMethod:'brush', carveTip:'line', ribType:'wood', carveWidth:1, carveDepth:1, undoActions:[], redoActions:[], waterReturn:null,
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
   yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, topDome:.065, localAlterations:[], before:null, strokeChanged:false
 };
@@ -143,7 +143,7 @@ function makeClay() {
   if (glazeMesh) { wheelGroup.remove(glazeMesh); glazeMesh.geometry.dispose(); glazeMesh.material.dispose(); glazeMesh=null; }
   glazeCanvas=glazeContext=glazeTexture=glazeMaterial=null;
   material=new THREE.MeshPhysicalMaterial({color:materials[state.material].color,map:clayMaps.color,roughness:materials[state.material].roughness,roughnessMap:clayMaps.roughness,bumpMap:clayMaps.bump,bumpScale:.004,metalness:materials[state.material].metalness,clearcoat:.012,clearcoatRoughness:.82,vertexColors:true,side:THREE.FrontSide,flatShading:false});
-  clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); makeGlazeLayer(); updateMaterial(); resetView();selectBrushMaterial('slip');selectTool('hand');
+  clay=new THREE.Mesh(geometry,material); clay.castShadow=true; clay.receiveShadow=true; wheelGroup.add(clay); rebuildMesh(); makeGlazeLayer(); updateMaterial(); resetView();selectBrushMaterial('water');selectTool('hand');
 }
 // UVs need separate vertices at the wrap; lighting needs a shared normal.
 function joinWrapNormals(meshGeometry, rows) {
@@ -311,6 +311,7 @@ function selectBrushMaterial(value){
  if(value!=='water')state.waterReturn=null;state.brushMaterial=value;selectTool('brush');
  document.querySelectorAll('[data-brush-material]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.brushMaterial===value)));
  document.querySelector('.material-tray').dataset.material=value;
+ const decoration=document.querySelector('.slip-decoration');if(decoration)decoration.open=value==='slip';
  status.textContent=value==='water'?'Brush water onto the clay to soften a section.':'Choose a slip color and brush it onto the clay.';
 }
 function setGlazeFinish(fired){
@@ -429,7 +430,8 @@ function paintGlaze(uv,speed=0){
  const clayHex=materials[state.material].color,slipColors={clay:[clayHex>>16&255,clayHex>>8&255,clayHex&255],cream:[223,209,184],rust:[154,80,56],brown:[71,51,41],charcoal:[54,54,56]};
  const glazing=state.phase==='glaze',[red,green,blue]=glazing?glazeColors[state.glazeColor]:slipColors[state.slipColor];
  const size=glazeCanvas.width,x=uv.x*size,y=(1-uv.y)*size,radius=glazing?glazeBrushRadius():(mobile?28:20);
- const alpha=glazing?.85:Math.max(.018,.05/(1+speed*.055));
+ if(glazing&&['spray','pour'].includes(state.glazeMethod)){paintGlazeMethod(x,y,radius,[red,green,blue]);return;}
+ const alpha=glazing?.85:Math.max(.18,.42/(1+speed*.025));
  for(const offset of [-size,0,size]){
   const gradient=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,radius);
   gradient.addColorStop(0,`rgba(${red},${green},${blue},${alpha})`);
@@ -438,6 +440,30 @@ function paintGlaze(uv,speed=0){
   glazeContext.fillStyle=gradient;glazeContext.beginPath();glazeContext.arc(x+offset,y,radius,0,Math.PI*2);glazeContext.fill();
  }
  glazeTexture.needsUpdate=true;state.glaze.changed=true;
+}
+// Application patterns change the paint texture only, never the vessel mesh.
+function paintGlazeMethod(x,y,radius,rgb){
+ const size=glazeCanvas.width,color=rgb.join(',');
+ glazeContext.save();
+ for(const offset of [-size,0,size]){
+  if(state.glazeMethod==='spray'){
+   const r=radius*1.8,g=glazeContext.createRadialGradient(x+offset,y,0,x+offset,y,r);
+   g.addColorStop(0,`rgba(${color},.10)`);g.addColorStop(.45,`rgba(${color},.055)`);g.addColorStop(1,`rgba(${color},0)`);
+   glazeContext.fillStyle=g;glazeContext.fillRect(x+offset-r,y-r,r*2,r*2);
+  }else{
+   // Five connected tapered rivulets flow down from the contact point.
+   for(let i=-2;i<=2;i++){
+    const start=x+offset+i*radius*.3,length=radius*(3.8-Math.abs(i)*.55),width=radius*(.36-Math.abs(i)*.065);
+    const g=glazeContext.createLinearGradient(0,y,0,y+length);
+    g.addColorStop(0,`rgba(${color},.45)`);g.addColorStop(.8,`rgba(${color},.3)`);g.addColorStop(1,`rgba(${color},0)`);
+    glazeContext.fillStyle=g;glazeContext.beginPath();glazeContext.moveTo(start-width,y);
+    glazeContext.bezierCurveTo(start-width,y+length*.45,start+width*.35,y+length*.8,start,y+length);
+    glazeContext.bezierCurveTo(start+width,y+length*.8,start+width,y+length*.3,start+width,y);
+    glazeContext.closePath();glazeContext.fill();
+   }
+  }
+ }
+ glazeContext.restore();glazeTexture.needsUpdate=true;state.glaze.changed=true;
 }
 // Connect samples across the texture seam, but never bridge a missed hit or
 // a jump between the outside and interior. The same path serves moving wheels.
@@ -489,7 +515,7 @@ function applyHeldSmoothing(dt){
  else{state.surfaceSmooth.forEach((amount,i)=>{const distance=(i-index)/Math.max(6,ringCount*.2);state.surfaceSmooth[i]=Math.min(1,amount+strength*Math.exp(-distance*distance*2));});rebuildMesh();state.strokeChanged=true;}
  status.textContent=state.tool==='sponge'?'Smoothing… keep the sponge on the mark.':'The rib gradually smooths the grooves beneath it.';
 }
-function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);paintGlazeStroke(hit,state.glaze.pointer.speed);}
+function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const now=performance.now();if(now-(state.glaze.pointer.lastHeldPaint||0)<50)return;state.glaze.pointer.lastHeldPaint=now;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);paintGlazeStroke(hit,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');selectGlazeColor(state.glazeColor);stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Touch the outside, rim, or inside to brush on glaze.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
@@ -704,7 +730,8 @@ function carveVertical(hit){
     const last=state.pointer.lastCarveMark;
     if(last&&Math.abs(last.y-y)<.025&&Math.abs(wrappedAngleDistance(last.angle,angle))<.04)continue;
     if(state.localAlterations.length>=600)break;
-    const mark={y,angle,radialDelta:-.03*state.carveDepth,heightRadius:.08*state.carveWidth,angleRadius:.12*state.carveWidth,strokeId:state.pointer.carveStrokeId};
+    const scoop=state.carveTip==='scoop';
+    const mark={y,angle,radialDelta:-(scoop?.065:.03)*state.carveDepth,heightRadius:(scoop?.13:.08)*state.carveWidth,angleRadius:(scoop?.09:.12)*state.carveWidth,strokeId:state.pointer.carveStrokeId};
     state.localAlterations.push(mark);state.pointer.lastCarveMark=mark;state.strokeChanged=true;
   }
   state.pointer.carvePoint=point;rebuildMesh();
@@ -721,12 +748,13 @@ function compressRib(index,radial,vertical){
   gesture.ribOffsets??=Array(source.length).fill(0);
   gesture.ribSmooth??=Array(source.length).fill(0);
   const scale=clayAmountScale(),limit=.055*scale;
-  const travel=Math.hypot(radial,vertical),sigma=Math.max(2,source.length*.065);
+  const rib=({wood:{width:1,pressure:1,smooth:1},metal:{width:.55,pressure:1.15,smooth:.7},rubber:{width:.7,pressure:.45,smooth:1.3}})[state.ribType||'wood'];
+  const travel=Math.hypot(radial,vertical),sigma=Math.max(1.4,source.length*.065*rib.width);
   source.forEach((ring,i)=>{
     if(i===0)return;const distance=i-index;if(Math.abs(distance)>sigma*3)return;
     const weight=Math.exp(-.5*(distance/sigma)**2);
-    gesture.ribOffsets[i]=THREE.MathUtils.clamp(gesture.ribOffsets[i]+radial*.0018*localWorkability(index)*weight,-limit,limit);
-    gesture.ribSmooth[i]=Math.min(.7,gesture.ribSmooth[i]+travel*.006*weight);
+    gesture.ribOffsets[i]=THREE.MathUtils.clamp(gesture.ribOffsets[i]+radial*.0018*rib.pressure*localWorkability(index)*weight,-limit,limit);
+    gesture.ribSmooth[i]=Math.min(.7,gesture.ribSmooth[i]+travel*.006*rib.smooth*weight);
   });
   source.forEach((ring,i)=>{
     if(i===0)return;
@@ -750,7 +778,7 @@ function editProfile(index,radial,vertical){
 function moveContact(clientX,clientY,active){
  if(!contact)return;const r=surface.getBoundingClientRect();contact.style.left=`${(clientX-r.left)*surface.clientWidth/r.width}px`;contact.style.top=`${(clientY-r.top)*surface.clientHeight/r.height}px`;
  const tool=state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'?'water':state.tool;
- contact.className=`contact contact--${tool}`;contact.style.setProperty('--contact-size',`${34*(state.phase==='glaze'?state.glazeBrushSize:state.tool==='carve'?state.carveWidth:1)}px`);
+ contact.className=`contact contact--${tool}`;contact.dataset.rib=state.ribType||'wood';contact.dataset.tip=state.carveTip||'line';contact.style.setProperty('--contact-size',`${34*(state.phase==='glaze'?state.glazeBrushSize:state.tool==='carve'?state.carveWidth:1)}px`);
  contact.style.setProperty('--contact-pressure',String(.9+(state.pointer?.intensity||0)*.25));
  contact.classList.toggle('is-active',active&&!!getHitAt(clientX,clientY));
 }
@@ -862,7 +890,7 @@ function onDown(event){
   const upperCenter=local.y>top-.2&&radial<state.profile.at(-1).r*.72;
   // Keep the newly opened interior forgivingly tappable from this elevated view.
   const inside=state.innerProfile&&(hit.object===innerMesh||(radial<=state.innerProfile.at(-1).r+.12&&local.y>=state.innerProfile[0].y-.04));
-  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(['hand','rib'].includes(state.tool)&&inside?'inside':(['hand','rib'].includes(state.tool)&&upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};}moveContact(event.clientX,event.clientY,true);
+  state.pointer={id:event.pointerId,x:event.clientX,y:event.clientY,axisX:r.left+r.width/2,index,mode:state.tool==='sponge'?'sponge':(state.tool==='carve'?'carve':(['hand','rib'].includes(state.tool)&&inside?'inside':(['hand','rib'].includes(state.tool)&&upperCenter?'start':'outside')))};saveBeforeStroke();if(state.pointer.mode==='carve'){state.pointer.carveStrokeId=++carveStrokeId;state.pointer.carvePoint={y:local.y,angle:Math.atan2(local.z,local.x)};if(state.carveTip==='scoop')carveVertical(hit);}moveContact(event.clientX,event.clientY,true);
 }
 function onMove(event){
   if(state.pointer?.id===event.pointerId&&state.pointer.mode==='water'){state.pointer.x=event.clientX;state.pointer.y=event.clientY;addWater(event.clientX,event.clientY);moveContact(event.clientX,event.clientY,true);return;}
@@ -874,7 +902,7 @@ function onMove(event){
   else if(state.pointer.mode==='sponge'){applySponge(state.pointer.index);softenSlip(getHit(event)?.uv);status.textContent='The sponge settles the clay into a softer curve.';}
   else if(state.pointer.mode==='carve'){
     const hit=getHit(event);
-    if(vertical||state.pointer.verticalCarve){state.pointer.verticalCarve=true;carveVertical(hit);status.textContent=state.wheel.paused?'A vertical groove follows your carving tool.':'A shallow spiral follows your cut. Hold the sponge over it to soften.';}
+    if(state.carveTip==='scoop'||vertical||state.pointer.verticalCarve){state.pointer.verticalCarve=true;carveVertical(hit);status.textContent=state.wheel.paused?'A vertical groove follows your carving tool.':'A shallow spiral follows your cut. Hold the sponge over it to soften.';}
     else{if(hit)applyCarve(profileIndexFromHit(hit));status.textContent='A small groove gathers beneath the carving tool.';}
     carveSlip(hit?.uv);
   }
@@ -993,7 +1021,7 @@ async function completePiece(){
  setWheelSpeed(.12);status.textContent='Saving your fired piece…';const saving=placeFinishedPiece(),savedId=currentShelfId;const persisted=await saving;if(state.phase!=='complete'||currentShelfId!==savedId)return;status.textContent=persisted?'Glaze fired. Your piece is saved on this browser’s shelf.':'Glaze fired. Browser storage is unavailable; save the image from Your shelf to keep it.';if(!persisted)showPhaseNote('Not saved in this browser. Save the image from Your shelf.');stageNote.textContent='your finished piece';
 }
 
-function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);if(key==='ArrowRight')compressRib(middle,24,0);if(key==='ArrowUp')compressRib(middle,0,-24);if(key==='ArrowDown')compressRib(middle,0,24);state.pointer=null;finishStroke();status.textContent='The rib follows your pressure along this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
+function keyboardShape(event){const key=event.key;if(['carve','sponge'].includes(state.tool)&&state.phase==='form'){if(['Enter',' '].includes(key)){event.preventDefault();saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='carve'&&state.carveTip==='scoop'){const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);state.pointer={carveStrokeId:++carveStrokeId};carveVertical(hit);state.pointer=null;}else if(state.tool==='carve')applyCarve(middle);else applySponge(middle);finishStroke();}return;}if(state.tool==='brush'&&state.brushMaterial==='water'&&state.phase==='form'&&['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect();addWater(bounds.left+bounds.width/2,bounds.top+bounds.height/2);return;}if(state.tool==='brush'&&['form','glaze'].includes(state.phase)){if(['Enter',' '].includes(key)){event.preventDefault();const bounds=renderer.domElement.getBoundingClientRect(),hit=getHitAt(bounds.left+bounds.width/2,bounds.top+bounds.height/2);if(hit?.uv){state.glaze.before=snapshotGlaze();state.glaze.changed=false;paintGlaze(hit.uv);state.glaze.pointer={id:-1};onUp({pointerId:-1});}}return;}if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(key)||state.phase!=='form')return;event.preventDefault();document.querySelector('.clay-amount')?.classList.add('is-tucked');saveBeforeStroke();const middle=Math.floor(state.profile.length/2);if(state.tool==='rib'){state.pointer={};if(key==='ArrowLeft')compressRib(middle,-24,0);if(key==='ArrowRight')compressRib(middle,24,0);if(key==='ArrowUp')compressRib(middle,0,-24);if(key==='ArrowDown')compressRib(middle,0,24);state.pointer=null;finishStroke();status.textContent='The rib follows your pressure along this section of the wall.';return;}if(key==='ArrowLeft')applyRadius(middle,-.045);if(key==='ArrowRight')applyRadius(middle,.045);if(key==='ArrowUp')applyHeight(middle,.035);if(key==='ArrowDown')applyHeight(middle,-.035);rebuildMesh();state.strokeChanged=true;finishStroke();status.textContent={ArrowLeft:'The middle draws inward.',ArrowRight:'The middle opens outward.',ArrowUp:'The middle lifts.',ArrowDown:'The middle settles.'}[key];}
 function undo(){
  if(!['form','glaze'].includes(state.phase)||state.pointer||state.glaze.pointer)return;
  const kind=state.undoActions?.pop();if(!kind)return;
@@ -1052,12 +1080,19 @@ function bind(){
   document.querySelectorAll('[data-new]').forEach(button=>button.addEventListener('click',()=>{makeClay();caption.textContent='Guide the clay outward or inward; lift it up or settle it down. With the clay focused, arrow keys shape its middle.';stageNote.textContent='touch the spinning clay';status.textContent='Fresh clay. The wheel keeps turning.';}));
 }
 
-// Starter families and suggested whole-piece glaze finishes.
-const studyGlazes={celadon:['Celadon','satin'],honey:['Honey','gloss'],cobalt:['Deep cobalt','gloss'],ash:['Bone ash','matte'],rose:['Dusty rose','satin'],plum:['Smoked plum','gloss'],chalk:['Chalk','matte'],moss:['Moss green','satin']};
+// Glaze color and whole-piece finish are independent choices.
+const studyGlazes={celadon:'Celadon',honey:'Honey',cobalt:'Deep cobalt',ash:'Bone ash',rose:'Dusty rose',plum:'Smoked plum',chalk:'Chalk',moss:'Moss green'};
 state.pieceFinish='satin';
-function studySelection(){const [name]=studyGlazes[state.glazeColor];document.querySelector('[data-glaze-selection]').textContent=name+' · Piece finish: '+state.pieceFinish;document.querySelector('[data-piece-finish]').value=state.pieceFinish;}
-for(const b of document.querySelectorAll('[data-glaze-color]')){const [name,finish]=studyGlazes[b.dataset.glazeColor];b.title=name+' · '+finish;b.setAttribute('aria-label',name+' glaze');b.addEventListener('click',()=>{state.pieceFinish=finish;studySelection();});}
+function studySelection(){document.querySelector('[data-glaze-selection]').textContent=studyGlazes[state.glazeColor];document.querySelector('[data-piece-finish]').value=state.pieceFinish;}
+for(const b of document.querySelectorAll('[data-glaze-color]')){const name=studyGlazes[b.dataset.glazeColor];b.title=name;b.setAttribute('aria-label',name+' glaze');b.addEventListener('click',studySelection);}
 document.querySelector('[data-piece-finish]').addEventListener('change',e=>{state.pieceFinish=e.target.value;studySelection();});
 for(const b of document.querySelectorAll('[data-starter]'))b.addEventListener('click',()=>{if(state.phase!=='form'||document.querySelector('.clay-amount').classList.contains('is-tucked'))return;state.material=b.dataset.starter;updateMaterial();document.querySelectorAll('[data-starter]').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));});
 new MutationObserver(()=>{if(surface.classList.contains('is-glazing'))studySelection();}).observe(surface,{attributes:true,attributeFilter:['class']});
 studySelection();
+
+document.querySelector('.slip-decoration').addEventListener('toggle',event=>{const value=event.currentTarget.open?'slip':'water';if(state.phase==='form'&&state.brushMaterial!==value)selectBrushMaterial(value);});
+
+document.querySelector('[data-glaze-method]').addEventListener('change',e=>{if(state.phase!=='glaze')return;if(state.glaze.pointer)onUp({pointerId:state.glaze.pointer.id});state.glazeMethod=e.target.value;});
+document.querySelector('[data-carve-tip]').addEventListener('change',e=>{if(state.phase!=='form')return;if(state.pointer)onUp({pointerId:state.pointer.id});state.carveTip=e.target.value;status.textContent=state.carveTip==='scoop'?'Pause the wheel; tap for an oval scoop, or drag to extend it.':'Drag to carve a shallow line.';});
+
+document.querySelector('[data-rib-type]').addEventListener('change',e=>{if(state.phase!=='form')return;if(state.pointer)onUp({pointerId:state.pointer.id});state.ribType=e.target.value;document.querySelector('[data-rib-note]').textContent={wood:'Broad contact · guide curves',metal:'Narrow contact · firm shaping',rubber:'Soft contact · gentle finishing'}[state.ribType];});
