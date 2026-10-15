@@ -39,16 +39,27 @@ let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, mat
 
 try { init(); } catch (error) { console.error(error); fallback.classList.add('is-visible'); }
 
+// A small original studio-light image, convolved once for soft reflections.
+function makeStudioEnvironment(){
+ const canvas=document.createElement('canvas');canvas.width=512;canvas.height=256;
+ const ctx=canvas.getContext('2d');
+ const base=ctx.createLinearGradient(0,0,0,256);base.addColorStop(0,'#534638');base.addColorStop(.5,'#30271e');base.addColorStop(1,'#171310');ctx.fillStyle=base;ctx.fillRect(0,0,512,256);
+ function softbox(x,y,w,h,color){ctx.save();ctx.shadowColor=color;ctx.shadowBlur=22;ctx.fillStyle=color;ctx.fillRect(x,y,w,h);ctx.restore();}
+ softbox(72,48,58,88,'#f9ead2');softbox(330,72,18,64,'#837d70');
+ const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.mapping=THREE.EquirectangularReflectionMapping;
+ const pmrem=new THREE.PMREMGenerator(renderer),target=pmrem.fromEquirectangular(texture);texture.dispose();pmrem.dispose();
+ return target.texture;
+}
+
 function init() {
   renderer = new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,1.65)); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.04;
+  renderer.setPixelRatio(Math.min(devicePixelRatio,1.65)); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.95;
   renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
   renderer.domElement.tabIndex=0; renderer.domElement.setAttribute('aria-label','Three-dimensional pottery wheel. Touch and guide the spinning clay. When focused, use arrow keys to shape its middle.'); stage.append(renderer.domElement);
   scene=new THREE.Scene(); camera=new THREE.PerspectiveCamera(33,1,.1,100); raycaster=new THREE.Raycaster(); pointer=new THREE.Vector2();
-  scene.add(new THREE.HemisphereLight(0xfffbf5,0xaaa59b,1.65));
-  const key=new THREE.DirectionalLight(0xfff6eb,2.2); key.position.set(-4.2,5.8,3.4); key.castShadow=true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.left=-5; key.shadow.camera.right=5; key.shadow.camera.top=5; key.shadow.camera.bottom=-5; key.shadow.bias=-.00015; key.shadow.normalBias=.025; key.shadow.radius=4; scene.add(key);
-  const fill=new THREE.DirectionalLight(0xcbd5d1,.55); fill.position.set(4,2.4,3); scene.add(fill);
-  const rim=new THREE.DirectionalLight(0xd5d1c8,.12); rim.position.set(-3,3.6,-4); scene.add(rim);
+  scene.environment=makeStudioEnvironment();
+  scene.add(new THREE.HemisphereLight(0xffead0,0x44362a,.55));
+  const key=new THREE.DirectionalLight(0xffeed8,2.4); key.position.set(-4.2,5.8,3.4); key.castShadow=true; key.shadow.mapSize.set(1024,1024); key.shadow.camera.left=-5; key.shadow.camera.right=5; key.shadow.camera.top=5; key.shadow.camera.bottom=-5; key.shadow.bias=-.00015; key.shadow.normalBias=.025; key.shadow.radius=4; scene.add(key);
   // A compact stationary wheel housing meets the existing wheel at Y=-2.
   // The clay, wheel head, painting and firing code remain unchanged.
   const housing=new THREE.Mesh(new THREE.CylinderGeometry(1.68,1.8,.68,72),new THREE.MeshStandardMaterial({color:0xe0ceaf,roughness:.9}));
@@ -181,7 +192,7 @@ function rebuildMesh() {
   const renderRows=renderProfile.length;
   const hasOpening=Boolean(state.innerProfile?.length);
   const wallUVHeight=hasOpening?1:.85;
-  renderProfile.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r/2,s===segments?0:s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,r/(renderRows-1)*wallUVHeight);}});
+  renderProfile.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const detail=claySurfaceDetail(r/2,s===segments?0:s);const alteration=localAlterationAt(ring.y,a);const radius=Math.max(minRadius,ring.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);const neighbors=(renderProfile[Math.max(0,r-2)].r+renderProfile[Math.min(renderProfile.length-1,r+2)].r)*.5;const cavity=Math.max(0,neighbors-ring.r)+Math.max(0,-alteration.radial)*.6;const ao=1-Math.min(.18,cavity*1.8);colors.push(detail.moisture*1.015*ao,detail.moisture*.985*ao,detail.moisture*.955*ao);uvs.push(s/segments,r/(renderRows-1)*wallUVHeight);}});
   for(let r=0;r<renderRows-1;r++) for(let s=0;s<segments;s++){const a=r*stride+s,b=(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,b,d,b,c,d);}
   const bottomIndex=vertices.length/3;
   vertices.push(0,state.profile[0].y,0);colors.push(.94,.9,.86);uvs.push(.5,0);
@@ -238,7 +249,7 @@ function buildInteriorMesh(){
   const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile,stride=segments+1;
   for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(top.y,a),detail=claySurfaceDetail(ringCount-1,s===segments?0:s);const radius=Math.max(minRadius,top.r+detail.radius+alteration.radial);vertices.push(Math.cos(a)*radius,top.y+alteration.vertical,Math.sin(a)*radius);colors.push(detail.moisture*1.015,detail.moisture*.985,detail.moisture*.955);uvs.push(s/segments,1);}
   const innerStart=vertices.length/3;
-  inner.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);colors.push(.94,.91,.85);uvs.push(s/segments,r/(inner.length-1));}});
+  inner.forEach((ring,r)=>{for(let s=0;s<=segments;s++){const a=s/segments*Math.PI*2;const alteration=localAlterationAt(ring.y,a);const radius=Math.max(.018,ring.r+alteration.radial);vertices.push(Math.cos(a)*radius,ring.y+alteration.vertical,Math.sin(a)*radius);const depth=1-r/(inner.length-1),ao=1-.24*depth*depth;colors.push(.94*ao,.91*ao,.85*ao);uvs.push(s/segments,r/(inner.length-1));}});
   for(let r=0;r<inner.length-1;r++)for(let s=0;s<segments;s++){const a=innerStart+r*stride+s,b=innerStart+(r+1)*stride+s,c=b+1,d=a+1;indices.push(a,d,b,b,d,c);}
   const innerTop=innerStart+(inner.length-1)*stride;let previous=0;
   for(let row=1;row<5;row++){
@@ -961,7 +972,7 @@ function selectGlazeColor(color){state.glazeColor=color;const selected=document.
 // Render only the finished clay, using its actual geometry and painted texture.
 // The snapshot is made by our renderer, not an illustration or generated asset.
 function captureFinishedPiece(){
- const captureScene=new THREE.Scene(),piece=new THREE.Group();
+ const captureScene=new THREE.Scene(),piece=new THREE.Group();captureScene.environment=scene.environment;
  piece.add(new THREE.Mesh(geometry,material));
  if(innerMesh)piece.add(new THREE.Mesh(innerMesh.geometry,innerMesh.material));
  if(slipMesh){const slip=new THREE.Mesh(geometry,slipMaterial);slip.renderOrder=2;piece.add(slip);}

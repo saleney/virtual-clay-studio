@@ -11,3 +11,15 @@
 - Validation: eight existing Node suites passed (water test fixture now includes maps and expects the new dry roughness); build and diff checks passed. Shaping/history code untouched.
 - Evidence: docs/raw-clay-checkpoint-1/review.html, before/after desktop and phone PNGs including 2.6× close-ups, matching metrics JSON, deterministic map-generator.js.
 - Stop here for user review. No deployment. No Checkpoint 2 or wall changes.
+
+## 2026-10-15 — Checkpoint 2: lighting and environment (awaiting review)
+
+- Original 512×256 studio-light image drawn at startup, PMREM-convolved once and shared with saved-piece rendering. Warm softbox reflection, dark warm surroundings; existing studio backdrop/UI retained.
+- One directional key plus low hemisphere ambient, existing soft shadow map, ACES exposure .95. Removed additional directional fill/rim lights.
+- Soft interior depth and groove cavity shading through existing vertex colors. This is approximate ambient occlusion, not screen-space or ray-traced AO. No added mesh positions/indices or per-frame postprocessing.
+- No tool, history, phase, glaze material parameter or wall-thickness changes. Existing final-fire reveal retained. Checkpoints 3 and 4 are pending approval.
+- Eight existing Node suites passed. Browser capture runs had no page errors; fired comparisons exercise first firing, coating, final firing and completion.
+- Continuous rendering: desktop median/p95 16.7/16.7ms; phone proxy 16.7/16.8ms, zero sampled intervals >33.4ms. Before phone readiness1494ms, after1786ms (+292ms). Desktop after6038ms vs1379ms is a significant startup outlier, so startup overhead remains a release concern. Single-run timings are noisy. Textures9→10.
+- Phone proxy uses Chrome on Mac at390×844, DPR2 capped1.65, CPU throttling4×; physical mid-range phone GPU/thermal behavior is unverified.
+- Evidence: docs/lighting-checkpoint-2/review.html, matched raw/fired before/after and close-ups, metrics JSON and portable capture helpers. Raw captures use a deterministic opened clay/groove fixture.
+- Stop for review. Nothing deployed.
