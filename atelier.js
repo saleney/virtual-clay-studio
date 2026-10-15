@@ -260,12 +260,12 @@ function buildInteriorMesh(){
       const rise=Math.sin(t*Math.PI)*Math.min(.035,(outer-inside)*.22);
       vertices.push(Math.cos(angle)*radius,top.y+mark.vertical+rise,Math.sin(angle)*radius);colors.push(.98,.96,.92);uvs.push(segment/segments,1);
     }
-    for(let segment=0;segment<segments;segment++)indices.push(previous+segment,previous+segment+1,start+segment,start+segment,previous+segment+1,start+segment+1);
+    for(let segment=0;segment<segments;segment++)indices.push(previous+segment,start+segment,previous+segment+1,start+segment,start+segment+1,previous+segment+1);
     previous=start;
   }
-  for(let segment=0;segment<segments;segment++)indices.push(previous+segment,previous+segment+1,innerTop+segment,innerTop+segment,previous+segment+1,innerTop+segment+1);
+  for(let segment=0;segment<segments;segment++)indices.push(previous+segment,innerTop+segment,previous+segment+1,innerTop+segment,innerTop+segment+1,previous+segment+1);
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);
-  for(let segment=0;segment<segments;segment++)indices.push(floorCenter,innerStart+segment,innerStart+segment+1);
+  for(let segment=0;segment<segments;segment++)indices.push(floorCenter,innerStart+segment+1,innerStart+segment);
   const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
   // The outer wall and rim are separate meshes, but share continuous lighting.
   const outerNormals=geometry.getAttribute('normal'),rimNormals=innerGeometry.getAttribute('normal');
@@ -339,10 +339,12 @@ function selectBrushMaterial(value){
 function setGlazeFinish(fired){
  if(!glazeMaterial?.userData.finishUniform)return;
  glazeMaterial.userData.finishUniform.value=fired?1:0;
- const finish=({satin:[.43,.3],gloss:[.2,.7],matte:[.78,.04]})[state.pieceFinish||'satin'];
+ const finish=({satin:[.43,.3],gloss:[.13,1],matte:[.78,.04]})[state.pieceFinish||'satin'];
  glazeMaterial.roughness=fired?finish[0]:.94;
  glazeMaterial.clearcoat=fired?finish[1]:0;
- glazeMaterial.clearcoatRoughness=fired?.2:.9;
+ glazeMaterial.clearcoatRoughness=fired?.12:.9;
+ glazeMaterial.envMapIntensity=fired?1.15:.18;
+ glazeMaterial.specularIntensity=fired?1:.12;
 }
 function configureGlazeFinish(){
  const finishUniform={value:0};glazeMaterial.userData.finishUniform=finishUniform;
@@ -367,7 +369,7 @@ function configureGlazeFinish(){
  `+shader.fragmentShader;
   shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
    if(glazeHeight <= glazeFootY) discard;
-   vec3 chalkyGlaze=mix(vec3(0.79,0.77,0.72),diffuseColor.rgb,0.96);
+   vec3 chalkyGlaze=mix(vec3(0.79,0.77,0.72),diffuseColor.rgb,0.72);
    diffuseColor.rgb=mix(chalkyGlaze,diffuseColor.rgb,glazeFired);
    #ifdef USE_MAP
    if(glazeCloud*glazeFired>0.5){
@@ -389,6 +391,8 @@ function configureGlazeFinish(){
     // Slope-sensitive color concentration; no geometry or paint is altered.
     float pool=smoothstep(.08,.6,-glazeRelief);
     float crest=smoothstep(.15,.75,glazeRelief);
+    // Subtle default thinning, with the optional Breaking effect adding strength.
+    diffuseColor.rgb=mix(diffuseColor.rgb,min(vec3(1.0),diffuseColor.rgb*1.18+vec3(.025)),crest*.24);
     diffuseColor.rgb*=1.0-effect_pooling*amount*pool*.38;
     diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.73,.65,.49),effect_breaking*amount*crest*.36);
     vec3 cell=glazePosition*95.0;float grain=cloudHash(floor(cell));
@@ -410,7 +414,7 @@ function configureGlazeFinish(){
    }
    #endif`);
  };
- glazeMaterial.customProgramCacheKey=()=> 'no-mottling-v7';
+ glazeMaterial.customProgramCacheKey=()=> 'ceramic-firing-v8';
  setGlazeFinish(false);
 }
 function makeGlazeLayer() {

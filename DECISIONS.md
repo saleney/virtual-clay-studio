@@ -23,3 +23,13 @@
 - Phone proxy uses Chrome on Mac at390×844, DPR2 capped1.65, CPU throttling4×; physical mid-range phone GPU/thermal behavior is unverified.
 - Evidence: docs/lighting-checkpoint-2/review.html, matched raw/fired before/after and close-ups, metrics JSON and portable capture helpers. Raw captures use a deterministic opened clay/groove fixture.
 - Stop for review. Nothing deployed.
+
+## 2026-10-15 — Checkpoint 3: glaze and rim-lighting correction
+
+- User authorized continuation through Checkpoint 4, without deployment.
+- Found reversed triangle winding on rim and cavity floor. Corrected facing/normals without moving vertices; the rim no longer shades as a separate dark lid.
+- Unfired glaze retains identifiable color but blends28% toward chalk, roughness.94, no clearcoat, restrained environment/specular. Fired Gloss roughness.13, clearcoat1, clearcoat roughness.12, environment intensity1.15. Satin and Matte preserve their existing roughness/coat identities.
+- Added subtle default crest lightening; existing groove pooling and six optional effects retain their final-fire gating. No paint, history, phase, or shaping changes.
+- Eight Node suites passed. Matched desktop and4× CPU-throttled390px phone proxy captures completed raw→bisque→glaze→finalfire with no page errors and finite geometry. Captures show actual reflected softboxes.
+- Fired rendering proxy measured ~33.3ms median /33.4ms p95 both before and after (about30fps, not60). No measured incremental slowdown, but this heavier fired path is a mobile performance concern. Hardware GPU performance remains unverified.
+- Evidence: docs/glaze-checkpoint-3/review.html and metrics.json. Local only.
