@@ -6,3 +6,6 @@ Production shelf key preserved. Eight Node regression suites passed (glaze finis
 
 ## Mobile viewport correction
 Removed the fixed 1020px mobile height introduced by the preview layout. The studio now follows dynamic viewport height; controls stay above the bottom edge and glazing uses two rows of touch-sized swatches. Added visible-control bounds assertions for shaping, glazing and completion at 320×568, 390×664 and 430×740. All nine checks passed without browser errors. Browser emulation, not a physical-device certification.
+
+## Clay-first starter panel
+Starter family and size choices temporarily replace the tools/actions, with Touch/Click the clay to begin. Existing clay-contact logic dismisses the panel; Reset restores it. Mobile stage enlarged and phone framing reserve reduced; glazing keeps the same stage size with one horizontally scrollable swatch row. Desktop starter panel also fits viewport height. Browser checks passed for selection, clay contact, reset, first firing and reachable last swatch at 320×568, 390×664, 430×740 and 1280×900. No page errors; asset build passed.

@@ -365,3 +365,35 @@
  .glaze-selection{min-height:24px!important}
  .finish-effects-panel{max-height:calc(100dvh - 100px);overflow-y:auto}
 }
+
+/* Starter choices temporarily replace controls; the clay remains interactive. */
+.clay-amount{z-index:8;background:#f3e7d5ed;border:1px solid #b8a18666;border-radius:12px;padding:12px;box-shadow:0 4px 18px #49372516}
+.starter-heading,.starter-instruction{width:100%;text-align:center;font:11px/1.4 ui-monospace,monospace;margin:0}
+.starter-heading{font-weight:600}.starter-instruction{padding-top:4px}
+.touch-instruction{display:none}
+@media(pointer:coarse){.touch-instruction{display:inline}.click-instruction{display:none}}
+.studio:has(.clay-amount:not(.is-tucked)):not(:has(.is-fired)) .tool-row,
+.studio:has(.clay-amount:not(.is-tucked)):not(:has(.is-fired)) .controls,
+.studio:has(.clay-amount:not(.is-tucked)):not(:has(.is-fired)) .recovery-controls,
+.studio:has(.clay-amount:not(.is-tucked)):not(:has(.is-fired)) .tool-hint{visibility:hidden}
+@media(min-width:621px){.clay-amount{bottom:20px}}
+@media(max-width:620px){
+ .work-surface,.work-surface.is-glazing{height:calc(100% - 150px)!important}
+ .clay-amount{bottom:12px!important;padding:10px;max-width:420px;margin:auto}
+ .tool-hint{display:none}
+ .recovery-controls{bottom:130px!important}
+ .glaze-colors{display:flex!important;flex-wrap:nowrap;justify-content:flex-start;overflow-x:auto;gap:6px!important;padding:5px;box-sizing:border-box;scrollbar-width:thin;touch-action:pan-x}
+ .glaze-color{flex:0 0 44px}
+ .work-surface.is-glazing~.glaze-tray{gap:0 6px;padding:0}
+ .glaze-tray .glaze-selection{font-size:10px;min-height:18px!important}
+ .finish-effects{grid-column:auto}
+ .glaze-tray .coat-glaze{grid-column:2;grid-row:3}
+ .glaze-tray .glaze-size{grid-column:1/-1;min-height:28px;flex-wrap:nowrap}
+ .glaze-tray .glaze-size input{min-height:28px}
+ .work-surface.is-glazing~.recovery-controls{bottom:236px!important;right:12px}
+}
+@media(min-width:621px){
+ .studio{height:100dvh;min-height:640px}
+ .work-surface{height:calc(100% - 100px)}
+ .clay-amount{bottom:20px}
+}

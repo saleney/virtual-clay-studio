@@ -524,7 +524,7 @@ function fitGrowingClay(){
   const invite=firstInvite.getBoundingClientRect();
   const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect();
   // Side-mounted tools and recovery do not reserve a full-width band above clay.
-  const safeTop=r.top+100; // Stage layout: framing is independent of document scroll.
+  const safeTop=r.top+(phone?70:100); // Stage layout: framing is independent of document scroll.
   const tools=document.querySelector('.tool-row').getBoundingClientRect();
   const controls=document.querySelector('.controls').getBoundingClientRect();
   const safeBottom=r.bottom-20;
