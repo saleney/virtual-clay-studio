@@ -8,7 +8,7 @@ let rebuilds=0,splashes=0;
 const material=new THREE.MeshPhysicalMaterial({color:0xd1c3ad,roughness:.78,clearcoat:.012,clearcoatRoughness:.82});
 const innerMaterial=material.clone(),clay={};
 const state={phase:'form',fired:false,material:'terracotta',pointer:null,tool:'brush',brushMaterial:'water',localWetness:Array(42).fill(0),localAlterations:[],glaze:{pointer:null},surfaceSmooth:Array(42).fill(0),profile:Array.from({length:42},(_,i)=>({y:-1.43+i*.03,r:.8})),history:[],wheel:{angle:0}};
-const ctx={THREE,state,ringCount:42,wetness:0,wetColorTime:0,wetClayTint:new THREE.Color(0x89765d),materialColor:new THREE.Color(),material,innerMesh:{material:innerMaterial},clay,materials:{terracotta:{color:0xd1c3ad,roughness:.78}},status:{},surface:{clientWidth:390,clientHeight:844,getBoundingClientRect:()=>({left:0,top:0,width:390,height:844}),append(){splashes++}},document:{createElement:()=>({style:{},setAttribute(){},addEventListener(){}}),querySelector:()=>({classList:{add(){}}})},completeFirstInvite(){},rebuildMesh(){rebuilds++},renderer:{domElement:{setPointerCapture(){}}},getHit:()=>({object:clay}),getHitAt:()=>({object:clay,point:new THREE.Vector3(.8,-.6,0),uv:{}}),wheelGroup:{updateMatrixWorld(){},worldToLocal:p=>p},profileIndexFromHit:()=>1,applySponge:()=>{rebuilds++},softenSlip(){},smoothProfileRadius(){},stabilizeProfile(){}};
+const ctx={THREE,state,rawClayMaps:{color:new THREE.Texture(),normal:new THREE.Texture(),roughness:new THREE.Texture()},clayMaps:{color:new THREE.Texture(),bump:new THREE.Texture(),roughness:new THREE.Texture()},ringCount:42,wetness:0,wetColorTime:0,wetClayTint:new THREE.Color(0x89765d),materialColor:new THREE.Color(),material,innerMesh:{material:innerMaterial},clay,materials:{terracotta:{color:0xd1c3ad,roughness:.78}},status:{},surface:{clientWidth:390,clientHeight:844,getBoundingClientRect:()=>({left:0,top:0,width:390,height:844}),append(){splashes++}},document:{createElement:()=>({style:{},setAttribute(){},addEventListener(){}}),querySelector:()=>({classList:{add(){}}})},completeFirstInvite(){},rebuildMesh(){rebuilds++},renderer:{domElement:{setPointerCapture(){}}},getHit:()=>({object:clay}),getHitAt:()=>({object:clay,point:new THREE.Vector3(.8,-.6,0),uv:{}}),wheelGroup:{updateMatrixWorld(){},worldToLocal:p=>p},profileIndexFromHit:()=>1,applySponge:()=>{rebuilds++},softenSlip(){},smoothProfileRadius(){},stabilizeProfile(){}};
 vm.createContext(ctx);
 vm.runInContext(['localWorkability','updateWetColors','updateMaterial','addWater','dryWater','onDown','restoreTowardSymmetry','applyHeldSmoothing','wrappedAngleDistance'].map(extract).join('\n'),ctx);
 const untouched=JSON.stringify(state.profile),wheel=JSON.stringify(state.wheel);
@@ -17,9 +17,9 @@ assert.equal(JSON.stringify(state.profile),untouched,'Water must not deform the 
 assert.equal(JSON.stringify(state.wheel),wheel,'Water must not change the wheel');
 assert.equal(rebuilds,0);assert.equal(state.localWetness[1],1);assert.ok(state.localWetness[41]<.001);
 assert.equal(ctx.localWorkability(1),1.65);assert.ok(ctx.localWorkability(41)<1.001);
-assert.ok(material.roughness<.78&&material.roughness>.27);assert.equal(innerMaterial.roughness,material.roughness);
+assert.ok(material.roughness<.98&&material.roughness>.27);assert.equal(innerMaterial.roughness,material.roughness);
 for(let i=0;i<200;i++)ctx.dryWater(.1);
-assert.equal(ctx.wetness,0);assert.equal(ctx.localWorkability(1),1);assert.ok(Math.abs(material.roughness-.78)<1e-9);
+assert.equal(ctx.wetness,0);assert.equal(ctx.localWorkability(1),1);assert.ok(Math.abs(material.roughness-.98)<1e-9);
 state.phase='glaze';ctx.addWater(1,1);assert.equal(ctx.wetness,0);
 console.log('Water: local softening without deformation, distant clay unchanged, full drying and blocked after firing');
 // Identical pressure must move a wet section farther than a dry one.

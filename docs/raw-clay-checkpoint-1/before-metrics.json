@@ -1,0 +1,24 @@
+[
+  {
+    "label": "desktop",
+    "loadMs": 3091,
+    "timing": {
+      "median": 16.699999999999818,
+      "p95": 16.700000000000728,
+      "over33": 0,
+      "textures": 7
+    },
+    "errors": []
+  },
+  {
+    "label": "phone",
+    "loadMs": 1497,
+    "timing": {
+      "median": 16.699999999999818,
+      "p95": 16.700000000000728,
+      "over33": 0,
+      "textures": 7
+    },
+    "errors": []
+  }
+]

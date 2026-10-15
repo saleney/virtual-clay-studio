@@ -35,7 +35,7 @@ const state = {
   glaze:{history:[],redo:[],pointer:null,before:null,changed:false},
   yaw:-.42, pitch:0, wheel:{angle:0,speed:0,target:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,resumeTarget:matchMedia('(prefers-reduced-motion:reduce)').matches?.55:4.4,paused:false}, topDome:.065, localAlterations:[], before:null, strokeChanged:false
 };
-let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerMesh, innerGlazeMesh, lastTime=0;
+let renderer, scene, camera, raycaster, pointer, wheelGroup, clay, geometry, material, clayMaps, rawClayMaps, glazeCanvas, glazeContext, glazeTexture, glazeMesh, glazeMaterial, innerMesh, innerGlazeMesh, lastTime=0;
 
 try { init(); } catch (error) { console.error(error); fallback.classList.add('is-visible'); }
 
@@ -74,7 +74,7 @@ function init() {
   const base=new THREE.Mesh(new THREE.CylinderGeometry(1.45,1.52,.25,72),new THREE.MeshStandardMaterial({color:0xe0ceaf,roughness:.9})); base.position.y=-1.875; base.receiveShadow=true; base.castShadow=true; wheelGroup.add(base);
   const wheel=new THREE.Mesh(new THREE.CylinderGeometry(1.86,1.91,.13,72),new THREE.MeshStandardMaterial({color:0xe0ceaf,map:makeWheelHeadTexture(),roughness:.7,metalness:.05})); wheel.position.y=-1.52; wheel.castShadow=true; wheel.receiveShadow=true; wheelGroup.add(wheel);
   const wheelContact=new THREE.Mesh(new THREE.CircleGeometry(1.15,48),new THREE.MeshBasicMaterial({color:0x241914,transparent:true,opacity:.18,depthWrite:false})); wheelContact.rotation.x=-Math.PI/2; wheelContact.position.y=-1.457; wheelGroup.add(wheelContact);
-  clayMaps=makeClayMaps();
+  clayMaps=makeClayMaps();rawClayMaps=makeRawClayMaps();
   makeClay(); window.addEventListener('resize',resize); resize(); bind(); requestAnimationFrame(render);
 }
 
@@ -110,6 +110,12 @@ function makeClayMaps() {
   color.getContext('2d').putImageData(colorData,0,0); roughness.getContext('2d').putImageData(roughData,0,0); bump.getContext('2d').putImageData(bumpData,0,0);
   const makeTexture=(canvas,isColor=false)=>{const texture=new THREE.CanvasTexture(canvas);texture.wrapS=THREE.RepeatWrapping;texture.wrapT=THREE.ClampToEdgeWrapping;if(isColor)texture.colorSpace=THREE.SRGBColorSpace;return texture;};
   return {color:makeTexture(color,true),roughness:makeTexture(roughness),bump:makeTexture(bump)};
+}
+// Pre-baked once from the deterministic generator in the checkpoint evidence.
+function makeRawClayMaps(){
+ const loader=new THREE.TextureLoader();
+ const make=(kind)=>{const map=loader.load(`./assets/raw-clay/${kind}.png`);map.flipY=false;map.wrapS=THREE.RepeatWrapping;map.wrapT=THREE.ClampToEdgeWrapping;map.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());if(kind==='color')map.colorSpace=THREE.SRGBColorSpace;return map;};
+ return {normal:make('normal'),roughness:make('roughness'),color:make('color')};
 }
 function computeClaySurfaceDetail(ringIndex, segmentIndex) {
   const t=ringIndex/(ringCount-1); const a=segmentIndex/segments*Math.PI*2;
@@ -272,10 +278,15 @@ function updateMaterial() {
  for(const target of [material,innerMesh?.material]){
   if(!target)continue;
   target.color.copy(materialColor);
+  const raw=state.phase==='form';
+  const nextMap=raw?rawClayMaps.color:clayMaps.color;
+  if(target.map!==nextMap){target.map=nextMap;target.normalMap=raw?rawClayMaps.normal:null;target.normalScale.set(.7,.7);target.bumpMap=raw?null:clayMaps.bump;target.roughnessMap=raw?rawClayMaps.roughness:clayMaps.roughness;target.needsUpdate=true;}
+  target.specularIntensity=raw?wet*.5:1;
+
   const dryRoughness=state.fired?Math.max(.48,sample.roughness-.08):sample.roughness;
-  target.roughness=THREE.MathUtils.lerp(dryRoughness,.27,wet);
+  target.roughness=THREE.MathUtils.lerp(raw?.98:dryRoughness,.27,wet);
   target.metalness=0;
-  target.clearcoat=THREE.MathUtils.lerp(state.fired?.07:.012,.72,wet);
+  target.clearcoat=THREE.MathUtils.lerp(state.fired?.07:0,.72,wet);
   target.clearcoatRoughness=THREE.MathUtils.lerp(state.fired?.55:.82,.18,wet);
  }
 }
