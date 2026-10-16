@@ -578,7 +578,7 @@ function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width
   camera.clearViewOffset();camera.aspect=r.width/framingHeight;
   camera.fov=phone?43:(camera.aspect<1.4?44:34);
   // Draw above and below the original framing, so tall clay is never clipped by a header strip.
-  camera.setViewOffset(r.width,framingHeight,0,-topReserve,r.width,r.height);camera.updateProjectionMatrix();
+  camera.setViewOffset(r.width,framingHeight,0,-topReserve-(phone?0:36*viewportScale),r.width,r.height);camera.updateProjectionMatrix();
   if(matchMedia('(max-width:620px)').matches){
     // Frame the stationary pan to the phone width, regardless of screen height.
     setCamera();camera.updateMatrixWorld();let minX=Infinity,maxX=-Infinity;
@@ -746,9 +746,15 @@ function balanceClayVolume(target,index){
  stabilizeProfile();reconcileInterior();
 }
 function applyRadius(index,amount){
- const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.042,.042),sigma=state.profile.length*.15;
- state.profile.forEach((ring,i)=>{const d=i-index;if(i===0&&index>Math.ceil(state.profile.length*.15))return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
- smoothProfileRadius(index);stabilizeProfile();reconcileInterior();
+ const target=clayVolume(),limited=THREE.MathUtils.clamp(amount*localWorkability(index),-.042,.042);
+ const upper=index>=state.profile.length*.68,low=index<=state.profile.length*.2;
+ const sigma=state.profile.length*(upper&&limited<0?.095:.15);
+ const innerBefore=state.innerProfile?.map(r=>({r:r.r,outer:outerRadiusAt(r.y)}));
+ state.profile.forEach((ring,i)=>{const d=i-index;if(i===0&&!low)return;const falloff=Math.exp(-(d*d)/(2*sigma*sigma));ring.r=THREE.MathUtils.clamp(ring.r+limited*falloff,minRadius,Math.min(2.05,1.42*clayAmountScale()));});
+ smoothProfileRadius(index);stabilizeProfile();
+ // Carry the hollow with local pressure instead of squeezing against a fixed cavity.
+ if(innerBefore)state.innerProfile.forEach((ring,i)=>{ring.r=Math.max(.018,innerBefore[i].r+outerRadiusAt(ring.y)-innerBefore[i].outer);});
+ reconcileInterior();
  // Wider walls settle; inward pressure lifts the form rather than creating clay.
  const ratio=THREE.MathUtils.clamp(target/clayVolume(),.94,1.06),base=state.profile[0].y;
  state.profile.forEach(ring=>ring.y=base+(ring.y-base)*ratio);

@@ -91,3 +91,9 @@
 - Full interaction checks at320/390/430/1280, opening/pull/Undo; final390 rerun after dry-color optimization. Eight Node suites,390/1280 material lifecycle/effects checks and build passed.
 - Performance remains a limitation: expensive updates still exceed16.7ms. Frame samples remain variable; no claim of eliminating mobile stutter. No physical device tested. Evidence and scripts: docs/sponge-performance-review/.
 - Local Git checkpoint only, no deployment or Drive copy (incremental rather than milestone archive).
+
+
+## 2026-10-16 — Compact movable tools and local shoulder pressure
+User approved both controls and the bounded shaping option, then requested deployment. Separate the stationary actions from the movable desktop palette. Phones start compact, with their selected-tool hint visible and settings behind an expand control. Preserve 44 px targets, keyboard movement, reset position, resize recovery and safe-area offsets.
+
+Hands shoulder closure uses narrower falloff and carries the inner profile with local radial changes before safety reconciliation; low contact includes the foot. No Rib/Sponge rewrite, guide outline, stage or history changes. Existing radial-thickness limitations remain. Review evidence and explicit browser testing limitations: docs/palette-shoulder-review/README.md. Previous oversized dock screenshots are retained as intermediate history, not final approval evidence.

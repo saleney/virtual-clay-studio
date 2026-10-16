@@ -35,3 +35,28 @@ window.addEventListener('storage',updateCollection);window.addEventListener('pag
 updateInterface();
 
 loadShelf(storageKey).then(pieces=>{if(sessionCollection===null){sessionCollection=pieces;updateCollection();}});
+
+// Move only from the dedicated handle, never from a clay gesture.
+const dock=document.querySelector('.slip-tray'),handle=dock.querySelector('.dock-drag');
+const toggle=dock.querySelector('.dock-toggle');
+function placeDock(x,y){
+ const parent=dock.offsetParent.getBoundingClientRect();
+ const footer=document.querySelector('.controls').getBoundingClientRect();
+ dock.classList.add('is-moved');
+ dock.style.left=Math.max(0,Math.min(parent.width-dock.offsetWidth,x-parent.left))+'px';
+ dock.style.top=Math.max(0,Math.min(footer.top-parent.top-52-dock.offsetHeight,y-parent.top))+'px';
+ dock.style.bottom='auto';
+}
+function keepDockVisible(){if(dock.classList.contains('is-moved')){const r=dock.getBoundingClientRect();placeDock(r.left,r.top);}}
+toggle.addEventListener('click',()=>{const collapsed=dock.classList.toggle('is-minimized');toggle.textContent=collapsed?'+':'−';toggle.setAttribute('aria-expanded',String(!collapsed));toggle.setAttribute('aria-label',collapsed?'Expand tool palette':'Minimize tool palette');keepDockVisible();});
+function resetDock(){dock.style.removeProperty('left');dock.style.removeProperty('top');dock.style.removeProperty('bottom');dock.classList.remove('is-moved');}
+dock.querySelector('.dock-reset').addEventListener('click',resetDock);
+let moving=null;
+handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;const r=dock.getBoundingClientRect();moving={x:e.clientX-r.left,y:e.clientY-r.top};handle.setPointerCapture(e.pointerId);e.preventDefault();});
+handle.addEventListener('pointermove',e=>{if(moving)placeDock(e.clientX-moving.x,e.clientY-moving.y);});
+for(const name of ['pointerup','pointercancel','lostpointercapture'])handle.addEventListener(name,()=>moving=null);
+window.addEventListener('resize',resetDock);
+new ResizeObserver(keepDockVisible).observe(dock);
+handle.addEventListener('keydown',e=>{if(e.key==='Escape')resetDock();const moves={ArrowLeft:[-20,0],ArrowRight:[20,0],ArrowUp:[0,-20],ArrowDown:[0,20]};if(moves[e.key]){e.preventDefault();const r=dock.getBoundingClientRect(),[x,y]=moves[e.key];placeDock(r.left+x,r.top+y);}});
+
+if(matchMedia('(max-width:620px)').matches)toggle.click();

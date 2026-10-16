@@ -19,6 +19,17 @@ for(const rings of [42,56])for(const size of [5,10,15])for(const hollow of [fals
  assert.deepEqual(state.profile.map(r=>r.y),plain.map(r=>r.y),'Sponge cannot stretch vertically');
  state.profile=plain;
  const initial=JSON.stringify(state.profile),initialInner=JSON.stringify(state.innerProfile);
+ // Shoulder pressure should stay local; low pressure must include the foot.
+ const shoulder=Math.floor(rings*.85),belly=Math.floor(rings*.45);
+ const shoulderBefore=state.profile[shoulder].r,bellyBefore=state.profile[belly].r;
+ ctx.applyRadius(shoulder,-.025);
+ assert.ok(shoulderBefore-state.profile[shoulder].r > 4*Math.abs(bellyBefore-state.profile[belly].r),'Closing the shoulder preserves the belly');
+ state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);
+ const footBefore=state.profile[0].r;
+ ctx.applyRadius(Math.floor(rings*.18),-.025);
+ assert.ok(state.profile[0].r<footBefore,'Low pressure reaches the foot');
+ state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);
+
  for(const amount of [.02,-.02]){
   state.profile=JSON.parse(initial);state.innerProfile=JSON.parse(initialInner);
   const footprint=state.profile[0].r,volume=ctx.clayVolume();
