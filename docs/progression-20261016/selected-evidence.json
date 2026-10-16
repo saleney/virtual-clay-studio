@@ -1,0 +1,102 @@
+[
+  {
+    "path": "docs/raw-clay-checkpoint-1/before-desktop-close.png",
+    "caption": "Before: uniform surface",
+    "sha256": "1dead2428a612e0e5fadad1b4e32c1812a28f0bb45eb71495c2b6a2e624cfc30"
+  },
+  {
+    "path": "docs/raw-clay-checkpoint-1/after-desktop-close.png",
+    "caption": "After: first procedural raw surface",
+    "sha256": "57b7763835ddde2c001746de4466fd662386ff89805f66034c8a05d1b3552f7f"
+  },
+  {
+    "path": "docs/lighting-checkpoint-2/before-fired-close.png",
+    "caption": "Before: fired surface",
+    "sha256": "e0c32cd15678738733444536536ab4fff3d459ccf418d31a513e1a418cb4007a"
+  },
+  {
+    "path": "docs/lighting-checkpoint-2/after-fired-close.png",
+    "caption": "After: environment reflections",
+    "sha256": "afd3bf16e459a7b41fe1c8b23affc43474c5d0d3019b095f23bc79832c494394"
+  },
+  {
+    "path": "docs/glaze-checkpoint-3/after-desktop-glazed-close.png",
+    "caption": "Same checkpoint: unfinished glaze",
+    "sha256": "cccc03384cd8eda5be1181fbc51698e2d9d35ae63f10d921d1698985f308751c"
+  },
+  {
+    "path": "docs/glaze-checkpoint-3/after-desktop-fired-close.png",
+    "caption": "Same checkpoint: after final firing",
+    "sha256": "af18444b3f45eeaf89bfcfdde6cc297d89eea74cabed202f811153dfc079ade8"
+  },
+  {
+    "path": "docs/walls-checkpoint-4/before-desktop-raw-close.png",
+    "caption": "Before: rim transition",
+    "sha256": "e1dfb4f0f4620b1e19676470cd705c4ba0577cc9507cf82b35b5a7a8cfdcb8a8"
+  },
+  {
+    "path": "docs/walls-checkpoint-4/after-desktop-raw-close.png",
+    "caption": "After: rounded lip",
+    "sha256": "d3b31c7cb834817a7a7ec284c3b4c4e3512683baa12f2a63d8c654650699baeb"
+  },
+  {
+    "path": "docs/raw-clay-reference-review/before-desktop-close.png",
+    "caption": "Before: first material system",
+    "sha256": "bda4899b131057dcf5280199a804a799f1695b02d657fc75c3339e9cc3f93c23"
+  },
+  {
+    "path": "docs/raw-clay-reference-review/after-desktop-close.png",
+    "caption": "After: reference-driven refinement",
+    "sha256": "2ad5872655af1dc2ae69254949a631e866d68f12c3b6cf6ef49dbc7b4ba14172"
+  },
+  {
+    "path": "docs/sponge-tool-review/1280-before.png",
+    "caption": "Before sponge contact",
+    "sha256": "0cda3e863b4f1b87d1e7b2cade940570cdf40f8268174a2e7ad94b7b3bdb1421"
+  },
+  {
+    "path": "docs/sponge-tool-review/1280-after.png",
+    "caption": "After bounded smoothing",
+    "sha256": "c221af0600441ee8060adb7901ed41aeb697f8cfd6ba3d43ebb8da660ce24f4d"
+  },
+  {
+    "path": "docs/needle-motion-review/1280-needle.png",
+    "caption": "Needle incision checkpoint",
+    "sha256": "205c2125fb3554a0010bf82fcf63d4e2f0e6307957c9b7d793efa9a71242f4e2"
+  },
+  {
+    "path": "docs/needle-motion-review/1280-stopped-close.png",
+    "caption": "Stopped: stronger relief",
+    "sha256": "9fc77214cc964bf3ecaba779b0f54bb7bf6f82ac0636fa5dc23712b2297af37d"
+  },
+  {
+    "path": "docs/needle-motion-review/1280-fast-close.png",
+    "caption": "Fast: quieter relief",
+    "sha256": "a23c24023f70b99774039ac22f3dcaeff1450e6e87be10fd6f54716e49ee0767"
+  },
+  {
+    "path": "docs/dog-bowl-attempt/05-finished-raw.png",
+    "caption": "Actual failed attempt\u2014not a target rendering",
+    "sha256": "2d47ddd3b5b3b75c6ffa47364e728df62346eef6d52d2bfa3cc1b504f29c776a"
+  },
+  {
+    "path": "docs/connected-cylinder-review/1280-05-finished-raw.png",
+    "caption": "Redo: open bowl",
+    "sha256": "9e76a6d6546613aed4f7e5577d72793226295050cdaff44bff652f709d29f229"
+  },
+  {
+    "path": "docs/connected-cylinder-review/1280-06-cylinder.png",
+    "caption": "Next gesture: upright cylinder",
+    "sha256": "257fe2372c1e89fe914301a9bcf0912c9465083cbc830339ea578144c59d73bf"
+  },
+  {
+    "path": "docs/connected-cylinder-review/390-05-finished-raw.png",
+    "caption": "Phone-layout bowl",
+    "sha256": "acebb05902bfe660a44200163fe21e9c3c0839cf2520210dd12f3a8860e217c6"
+  },
+  {
+    "path": "docs/connected-cylinder-review/390-06-cylinder.png",
+    "caption": "Phone-layout cylinder",
+    "sha256": "79c886fc8aff42f0faaadf6e5c98f4d1b29ab2092ab8d229ea88df256cb10247"
+  }
+]

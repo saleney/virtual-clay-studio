@@ -77,3 +77,10 @@
 - Eight Node suites passed with additional5/10/15lb connected-wall/deep-opening/floor tests. Browser1280px and320/390/430px phone layouts passed opening, cylinder raise, Undo dimensions, no errors. Phone opening/pull uses CDP touch events at4×CPU throttle; initial low/wide preparation uses keyboard and finishing uses mouse. Not a physical-device or novice usability claim.
 - Reference attempt now reaches open upright bowl, then cylinder, using normal controls. Evidence docs/connected-cylinder-review/review.html; prior unsuccessful evidence retained in docs/dog-bowl-attempt/. No material/UI layout changes. No deployment.
 - Performance concern:390px/4×CPU held-Sponge sample (60RAF intervals) median16.7ms, p95150ms. This exposes intermittent slow geometry updates; mobile smoothness is not fully resolved and needs profiling before release. No claim that this patch caused or eliminated that cost.
+
+## 2026-10-16 — Checkpoint preservation and milestone archive
+- User policy: preserve every meaningful checkpoint in Git and keep review evidence under docs/. Only milestone-level screenshots, guides, reviews and handoffs belong in Drive.
+- Existing ten material/tool/replication checkpoints remain separate commits through 170681b. Added docs/progression-20261016/ with an ordered, self-contained milestone review, 20 selected original screenshots, reproducible builder and SHA-256 source manifest. No scratch captures or source bundle uploaded.
+- Reused existing Drive project journal and its 03 — Handoffs + checkpoints folder; preserved older master case study and field guide. Verified uploaded review metadata and all 20 embedded images in browser.
+- Drive review: https://drive.google.com/file/d/11sOdjn1T6x-DlOT4sVQw942i31ywkpRA/view
+- Explicitly records failed bowl, subsequent bowl/cylinder redo and unresolved held-Sponge mobile-proxy stutter. No physical-device claim, app changes or deployment.
