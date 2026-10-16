@@ -39,10 +39,14 @@ for(const tool of ['sponge','rib'])for(const turning of [false,true]){
  ctx.getHitAt=()=>({object:clay,point:new THREE.Vector3(.8*Math.cos(angle),-.6,.8*Math.sin(angle)),uv:{}});
  const shape=JSON.stringify(state.profile);
  for(let i=0;i<600;i++){if(turning)angle=i*.04;ctx.applyHeldSmoothing(.02);}
- assert.ok(!state.localAlterations.some(m=>m.strokeId===1),`${tool} should eventually erase the contacted groove`);
+ if(tool==='sponge'){
+  const cut=state.localAlterations.find(m=>m.strokeId===1);assert.ok(cut,'Deep cut must remain');
+  assert.ok(-cut.radialDelta>=.045*.7-1e-9);assert.ok(-cut.radialDelta<.045,'Edges should soften');
+  assert.ok(cut.heightRadius<=.065*1.2+1e-9,'Softening width is bounded');
+ }else assert.ok(!state.localAlterations.some(m=>m.strokeId===1),'Rib retains compression recovery');
  assert.ok(state.localAlterations.some(m=>m.strokeId===2),'A distant groove must remain');
  assert.equal(JSON.stringify(state.profile),shape,'Holding a smoothing tool must not stretch clay vertically');
- console.log(`${tool}, ${turning?'turning':'paused'}: gradual local groove removal, distant groove preserved`);
+ console.log(`${tool}, ${turning?'turning':'paused'}: bounded sponge softening / rib recovery, distant groove preserved`);
 }
 console.log('All water and held-smoothing regression checks passed');
 
@@ -62,3 +66,22 @@ for(const mode of ['start','inside']){
  assert.equal(rebuilds,before,'Rib opening must not simultaneously reshape the outer wall');
 }
 console.log('Rib center/inside contact leaves outer smoothing inactive');
+
+state.tool='sponge';state.phase='form';state.localAlterations=[{y:-.6,angle:0,radialDelta:-.012,heightRadius:.065,angleRadius:.09,strokeId:4}];
+ctx.getHitAt=()=>({object:clay,point:new THREE.Vector3(.8,-.6,0),uv:{}});
+state.pointer={id:1,x:200,y:330};for(let i=0;i<600;i++)ctx.applyHeldSmoothing(.02);
+assert.equal(state.localAlterations.length,0,'Shallow marks can disappear');
+console.log('Shallow sponge marks disappear while deep cuts retain their floor');
+
+vm.runInContext(['applySponge','applyCarve'].map(extract).join('\n'),ctx);
+state.profile=Array.from({length:42},(_,i)=>({y:-1.43+i*.03,r:.8}));state.innerProfile=null;
+state.carveWidth=1;state.carveDepth=1;state.surfaceSmooth=Array(42).fill(0);
+for(let i=0;i<5;i++)ctx.applyCarve(20);
+const cutRadius=state.profile[20].r,removed=state.profile[20].carvedDepth;
+for(let i=0;i<500;i++)ctx.applySponge(20);
+assert.ok(state.profile[20].r<=cutRadius+removed*.3+1e-8,'Full-ring deep cut cannot be filled by sponge');
+console.log('Full-ring sponge recovery is capped');
+
+state.localAlterations=[{y:-.6,angle:0,radialDelta:-.01,spongeOriginalDepth:.08,spongeOriginalHeight:.065,spongeOriginalAngle:.09,heightRadius:.065,angleRadius:.09,strokeId:10}];
+ctx.restoreTowardSymmetry(ctx.getHitAt(),.2,.2,.55,false);
+assert.ok(-state.localAlterations[0].radialDelta<=.01,'Returning from Rib must not deepen a softened cut');

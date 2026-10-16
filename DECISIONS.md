@@ -52,3 +52,9 @@
 - Assets now substantially smaller (normal~716KB, color~153KB); unchanged map dimensions/GPU texture count. Additional UV buffer is small and only updated during existing mesh rebuilds.
 - Desktop and390px4× CPU phone proxy: median16.7ms, p95~16.8ms before/after, zero sampled intervals>33.4ms, no browser errors. Physical phone GPU/thermal behavior unverified. Eight Node regression suites passed.
 - Evidence/generator/bake helper: docs/raw-clay-reference-review/. Reference frame copies are documentation only, never loaded by the app. Baseline a9d628d. Stop for review; no deployment.
+
+## 2026-10-15 — Sponge tool checkpoint
+- Sponge removes shallow local marks; carved marks deeper than .02 scene units retain at least70% of their original depth, with edge widths easing toward120%. Limits persist across repeated contacts and history snapshots. Full-ring cuts track removed depth and limit sponge refill to30%.
+- Broad contour smoothing reduced from.12 to.035 per contact update. Rib compression/recovery unchanged. Carving remains available during Throwing; no simulated drying gate added.
+- Eight Node suites passed, including new shallow/deep/full-ring and returning-from-Rib checks. Browser390/1280px: held contact, repeat contact and exact Undo/Redo passed with no errors. Build passed.
+- Evidence: docs/sponge-tool-review/. Local only; no deployment.

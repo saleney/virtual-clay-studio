@@ -1,0 +1,38 @@
+[
+  {
+    "width": 390,
+    "cut": {
+      "y": -0.8742604873778905,
+      "angle": 1.990796326794894,
+      "radialDelta": -0.055999999999999994,
+      "heightRadius": 0.11962449408420603,
+      "angleRadius": 0.14354939290104723,
+      "strokeId": 900,
+      "spongeOriginalDepth": 0.08,
+      "spongeOriginalHeight": 0.1,
+      "spongeOriginalAngle": 0.12,
+      "verticalDelta": 0
+    },
+    "undoRedo": true,
+    "repeatContact": true,
+    "errors": []
+  },
+  {
+    "width": 1280,
+    "cut": {
+      "y": -0.6215496780625722,
+      "angle": 1.9907963267948943,
+      "radialDelta": -0.055999999999999994,
+      "heightRadius": 0.11999680612529574,
+      "angleRadius": 0.14399616735035486,
+      "strokeId": 900,
+      "spongeOriginalDepth": 0.08,
+      "spongeOriginalHeight": 0.1,
+      "spongeOriginalAngle": 0.12,
+      "verticalDelta": 0
+    },
+    "undoRedo": true,
+    "repeatContact": true,
+    "errors": []
+  }
+]

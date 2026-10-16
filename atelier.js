@@ -549,7 +549,7 @@ function applyHeldSmoothing(dt){
  restoreTowardSymmetry(hit,strength,.2,.55,false);
  if(state.tool==='sponge'){applySponge(index);softenSlip(hit.uv);}
  else{state.surfaceSmooth.forEach((amount,i)=>{const distance=(i-index)/Math.max(6,ringCount*.2);state.surfaceSmooth[i]=Math.min(1,amount+strength*Math.exp(-distance*distance*2));});rebuildMesh();state.strokeChanged=true;}
- status.textContent=state.tool==='sponge'?'Smoothing… keep the sponge on the mark.':'The rib gradually smooths the grooves beneath it.';
+ status.textContent=state.tool==='sponge'?'Softening the edges… deep cuts remain. Undo reverses a cut.':'The rib gradually smooths the grooves beneath it.';
 }
 function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;const now=performance.now();if(now-(state.glaze.pointer.lastHeldPaint||0)<50)return;state.glaze.pointer.lastHeldPaint=now;const hit=getHitAt(state.glaze.pointer.x,state.glaze.pointer.y);paintGlazeStroke(hit,state.glaze.pointer.speed);}
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');selectGlazeColor(state.glazeColor);stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Touch the outside, rim, or inside to brush on glaze.';}
@@ -664,7 +664,16 @@ function restoreTowardSymmetry(hit,strength,heightRadius,angleRadius,rebuild=tru
   const local=wheelGroup.worldToLocal(hit.point.clone());let changed=false;
   state.localAlterations=state.localAlterations.filter(mark=>{
     const height=(local.y-mark.y)/heightRadius,arc=wrappedAngleDistance(Math.atan2(local.z,local.x),mark.angle)/angleRadius;const influence=Math.exp(-.5*(height*height+arc*arc));
-    if(influence>.001){const damp=1-strength*influence;mark.radialDelta*=damp;mark.verticalDelta=(mark.verticalDelta||0)*damp;changed=true;}
+    if(influence>.001){const damp=1-strength*influence;
+      if(state.tool==='sponge'&&mark.strokeId!==undefined&&(mark.spongeOriginalDepth||-mark.radialDelta)>.02){
+        // Persist the original cut depth so lifting/reapplying never resets the limit.
+        mark.spongeOriginalDepth??=-mark.radialDelta;
+        mark.spongeOriginalHeight??=mark.heightRadius;mark.spongeOriginalAngle??=mark.angleRadius;
+        mark.radialDelta=-Math.min(-mark.radialDelta,Math.max(mark.spongeOriginalDepth*.7,-mark.radialDelta*damp));
+        mark.heightRadius+=(mark.spongeOriginalHeight*1.2-mark.heightRadius)*(1-damp);
+        mark.angleRadius+=(mark.spongeOriginalAngle*1.2-mark.angleRadius)*(1-damp);
+      }else mark.radialDelta*=damp;
+      mark.verticalDelta=(mark.verticalDelta||0)*damp;changed=true;}
     return Math.abs(mark.radialDelta)>=.0015||Math.abs(mark.verticalDelta||0)>=.0015;
   });
   if(changed){if(rebuild)rebuildMesh();state.strokeChanged=true;}return changed;
@@ -744,7 +753,13 @@ function applySponge(index){
     for(let j=Math.max(0,Math.floor(i-width*2));j<=Math.min(source.length-1,Math.ceil(i+width*2));j++){
       const weight=Math.exp(-.5*((j-i)/width)**2);sum+=source[j]*weight;total+=weight;
     }
-    ring.r=Math.max(safeOuterRadius(ring.y),ring.r+(sum/total-ring.r)*.12*contact);
+    let change=(sum/total-ring.r)*.035*contact;
+    // Full-ring carving also removes material: a sponge may soften, not refill it.
+    if(change>0&&ring.carvedDepth>.02){
+      change=Math.min(change,Math.max(0,ring.carvedDepth*.3-(ring.spongeRecovered||0)));
+      ring.spongeRecovered=(ring.spongeRecovered||0)+change;
+    }
+    ring.r=Math.max(safeOuterRadius(ring.y),ring.r+change);
   });
   stabilizeProfile();reconcileInterior();rebuildMesh();state.strokeChanged=true;
 }
@@ -774,7 +789,7 @@ function carveVertical(hit){
 }
 function applyCarve(index){
  const width=state.carveWidth||1,depth=state.carveDepth||1;
- state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>Math.ceil(3*width))return;const falloff=Math.exp(-(d*d)/(2*(1.15*width)**2));ring.r=Math.max(safeOuterRadius(ring.y),ring.r-.014*depth*falloff);});
+ state.profile.forEach((ring,i)=>{const d=i-index;if(Math.abs(d)>Math.ceil(3*width))return;const falloff=Math.exp(-(d*d)/(2*(1.15*width)**2));const before=ring.r;ring.r=Math.max(safeOuterRadius(ring.y),ring.r-.014*depth*falloff);ring.carvedDepth=(ring.carvedDepth||0)+(before-ring.r);});
  stabilizeProfile();rebuildMesh();state.strokeChanged=true;
 }
 function compressRib(index,radial,vertical){
