@@ -254,17 +254,18 @@ function buildInteriorMesh(){
   const innerTop=innerStart+(inner.length-1)*stride;let previous=0;
   for(let row=1;row<5;row++){
     const t=row/5,start=vertices.length/3;
+    const radialBlend=(1-Math.cos(t*Math.PI))*.5;
     for(let segment=0;segment<=segments;segment++){
       const angle=segment/segments*Math.PI*2,mark=localAlterationAt(top.y,angle),detail=claySurfaceDetail(ringCount-1,segment===segments?0:segment);
-      const outer=top.r+detail.radius+mark.radial,inside=inner.at(-1).r+mark.radial,radius=THREE.MathUtils.lerp(outer,inside,t);
-      const rise=Math.sin(t*Math.PI)*Math.min(.035,(outer-inside)*.22);
-      vertices.push(Math.cos(angle)*radius,top.y+mark.vertical+rise,Math.sin(angle)*radius);colors.push(.98,.96,.92);uvs.push(segment/segments,1);
+      const outer=top.r+detail.radius+mark.radial,inside=inner.at(-1).r+mark.radial,radius=THREE.MathUtils.lerp(outer,inside,radialBlend);
+      const rise=Math.sin(t*Math.PI)*Math.min(.055,(outer-inside)*.5);
+      vertices.push(Math.cos(angle)*radius,top.y+mark.vertical+rise,Math.sin(angle)*radius);const shade=THREE.MathUtils.lerp(detail.moisture,1,radialBlend);colors.push(shade*THREE.MathUtils.lerp(1.015,.94,radialBlend),shade*THREE.MathUtils.lerp(.985,.91,radialBlend),shade*THREE.MathUtils.lerp(.955,.85,radialBlend));uvs.push(segment/segments,1);
     }
     for(let segment=0;segment<segments;segment++)indices.push(previous+segment,start+segment,previous+segment+1,start+segment,start+segment+1,previous+segment+1);
     previous=start;
   }
   for(let segment=0;segment<segments;segment++)indices.push(previous+segment,innerTop+segment,previous+segment+1,innerTop+segment,innerTop+segment+1,previous+segment+1);
-  const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94,.91,.85);uvs.push(.5,0);
+  const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94*.76,.91*.76,.85*.76);uvs.push(.5,0);
   for(let segment=0;segment<segments;segment++)indices.push(floorCenter,innerStart+segment+1,innerStart+segment);
   const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
   // The outer wall and rim are separate meshes, but share continuous lighting.

@@ -1,0 +1,50 @@
+[
+  {
+    "tag": "before",
+    "device": "desktop",
+    "errors": [],
+    "median": 33.30000000000109,
+    "p95": 33.399999999999636,
+    "over33": 7,
+    "roughness": 0.13,
+    "clearcoat": 1,
+    "phase": "complete",
+    "finite": true
+  },
+  {
+    "tag": "before",
+    "device": "phone",
+    "errors": [],
+    "median": 33.30000000000109,
+    "p95": 33.400000000001455,
+    "over33": 24,
+    "roughness": 0.13,
+    "clearcoat": 1,
+    "phase": "complete",
+    "finite": true
+  },
+  {
+    "tag": "after",
+    "device": "desktop",
+    "errors": [],
+    "median": 33.30000000000109,
+    "p95": 33.400000000001455,
+    "over33": 9,
+    "roughness": 0.13,
+    "clearcoat": 1,
+    "phase": "complete",
+    "finite": true
+  },
+  {
+    "tag": "after",
+    "device": "phone",
+    "errors": [],
+    "median": 33.30000000000109,
+    "p95": 33.400000000001455,
+    "over33": 24,
+    "roughness": 0.13,
+    "clearcoat": 1,
+    "phase": "complete",
+    "finite": true
+  }
+]

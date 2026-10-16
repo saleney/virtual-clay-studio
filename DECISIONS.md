@@ -33,3 +33,12 @@
 - Eight Node suites passed. Matched desktop and4× CPU-throttled390px phone proxy captures completed raw→bisque→glaze→finalfire with no page errors and finite geometry. Captures show actual reflected softboxes.
 - Fired rendering proxy measured ~33.3ms median /33.4ms p95 both before and after (about30fps, not60). No measured incremental slowdown, but this heavier fired path is a mobile performance concern. Hardware GPU performance remains unverified.
 - Evidence: docs/glaze-checkpoint-3/review.html and metrics.json. Local only.
+
+## 2026-10-15 — Checkpoint 4: rounded lip and readable inner wall
+
+- Rim uses a cosine radial sweep and bounded half-ellipse rise instead of linear flat bridging. Same five rim intervals, no extra triangles. Outer/inner endpoints and actual shaped wall thickness remain unchanged; minimum thickness guards remain intact. This makes an opened thin wall read with a rounded edge without forcibly widening a user-shaped neck.
+- Rim color interpolates between the outer and inner surfaces. Interior floor center now shares the cavity floor's soft AO value rather than producing a bright triangular fan.
+- Browser tests pass at390px and1280px: upward rim triangle winding for narrow/wide rims, finite positions/normals, unchanged shaping profile and history after mesh rebuild, final-fire reveal, all six effect shader configurations, return to matte preview. Previous tool browser tests passed scoop Undo/Redo, three ribs, Brush/Pour/Spray/Dip Undo. Eight Node suites and build passed.
+- Phone4× CPU proxy fired median33.3ms/p9533.4ms before and after; desktop same. No added frame-time cost measured. These are headless Chrome proxy measurements, not real-device verification.
+- Before/after raw, glazed, fired and2× close-up evidence: docs/walls-checkpoint-4/review.html. Regenerate with EVIDENCE_DIR=docs/walls-checkpoint-4 BASELINE=4bb5cd0 and docs/glaze-checkpoint-3/capture.cjs.
+- Checkpoints3–4 complete locally; no deployment/push. Await visual review.
