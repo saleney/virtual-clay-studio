@@ -126,7 +126,9 @@ function makeClayMaps() {
 function makeRawClayMaps(){
  const loader=new THREE.TextureLoader();
  const make=(kind)=>{const map=loader.load(`./assets/raw-clay/${kind}.png`);map.flipY=false;map.wrapS=THREE.RepeatWrapping;map.wrapT=THREE.ClampToEdgeWrapping;map.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());if(kind==='color')map.colorSpace=THREE.SRGBColorSpace;return map;};
- return {normal:make('normal'),roughness:make('roughness'),color:make('color')};
+ const maps={normal:make('normal'),roughness:make('roughness'),color:make('color')};
+ for(const map of Object.values(maps))map.channel=1;
+ return maps;
 }
 function computeClaySurfaceDetail(ringIndex, segmentIndex) {
   const t=ringIndex/(ringCount-1); const a=segmentIndex/segments*Math.PI*2;
@@ -230,6 +232,8 @@ function rebuildMesh() {
     geometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));
     geometry.setIndex(indices);geometry.deleteAttribute('normal');
   }
+  const rawUVs=uvs.map((value,index)=>index%2?value*.85:value);
+  geometry.setAttribute('uv1',new THREE.Float32BufferAttribute(rawUVs,2));
   geometry.computeVertexNormals();
   joinWrapNormals(geometry,renderRows);
   if(!hasOpening){
@@ -267,7 +271,12 @@ function buildInteriorMesh(){
   for(let segment=0;segment<segments;segment++)indices.push(previous+segment,innerTop+segment,previous+segment+1,innerTop+segment,innerTop+segment+1,previous+segment+1);
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94*.76,.91*.76,.85*.76);uvs.push(.5,0);
   for(let segment=0;segment<segments;segment++)indices.push(floorCenter,innerStart+segment+1,innerStart+segment);
-  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));innerGeometry.setIndex(indices);innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
+  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));const rawUVs=uvs.slice();
+  for(let s=0;s<=segments;s++)rawUVs[s*2+1]=.85;
+  const rimStart=(inner.length+1)*stride;
+  for(let row=1;row<5;row++)for(let s=0;s<=segments;s++)rawUVs[(rimStart+(row-1)*stride+s)*2+1]=.85+.15*(1-Math.cos(row/5*Math.PI))*.5;
+  innerGeometry.setAttribute('uv1',new THREE.Float32BufferAttribute(rawUVs,2));
+  innerGeometry.setIndex(indices);innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
   // The outer wall and rim are separate meshes, but share continuous lighting.
   const outerNormals=geometry.getAttribute('normal'),rimNormals=innerGeometry.getAttribute('normal');
   const outerStart=(state.profile.length-1)*2*stride;

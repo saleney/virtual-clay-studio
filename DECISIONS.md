@@ -42,3 +42,13 @@
 - Phone4× CPU proxy fired median33.3ms/p9533.4ms before and after; desktop same. No added frame-time cost measured. These are headless Chrome proxy measurements, not real-device verification.
 - Before/after raw, glazed, fired and2× close-up evidence: docs/walls-checkpoint-4/review.html. Regenerate with EVIDENCE_DIR=docs/walls-checkpoint-4 BASELINE=4bb5cd0 and docs/glaze-checkpoint-3/capture.cjs.
 - Checkpoints3–4 complete locally; no deployment/push. Await visual review.
+
+## 2026-10-15 — Raw-clay video-reference refinement
+
+- Compared supplied19-04-38 and19-02-39 recordings (31.55s/24.535s) at multiple timestamps. Used actual decoded frames of throwing, trimming and smoothing, not the finished glazed-pot introduction.
+- Three differences addressed only: (1) broad blurred marks versus fine close circular lines; (2) heavy all-over granular relief versus smooth clay with sparse pores; (3) stretched radial rim marks versus circular detail.
+- Original procedural generator increases line frequency and reduces coarse noise/mottle relief, uses sparse pits rather than uniform white noise. Same1024-square maps, material hues and matte response. No reference image pixels used in runtime textures.
+- Added separate uv1 raw texture coordinates: reserve85% for outer wall and15% for the rim, preserve original uv painting coordinates. Positions/indices, tool logic, process/history and lighting unchanged. Existing raw-map channel changes back with the legacy non-raw maps at firing.
+- Assets now substantially smaller (normal~716KB, color~153KB); unchanged map dimensions/GPU texture count. Additional UV buffer is small and only updated during existing mesh rebuilds.
+- Desktop and390px4× CPU phone proxy: median16.7ms, p95~16.8ms before/after, zero sampled intervals>33.4ms, no browser errors. Physical phone GPU/thermal behavior unverified. Eight Node regression suites passed.
+- Evidence/generator/bake helper: docs/raw-clay-reference-review/. Reference frame copies are documentation only, never loaded by the app. Baseline a9d628d. Stop for review; no deployment.
