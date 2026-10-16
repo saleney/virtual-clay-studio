@@ -108,3 +108,13 @@ Source findings: competing positioned layouts; mobile starter transform:none!imp
 Recommended direction (not approved): stage-aware bounded mobile dock plus desktop side inspector, with a protected clay region,14–16px labels and44px minimum targets. Settings replace content rather than overlaying the clay. Explain the real space tradeoff: a tall form at320px may require view fitting between gestures; preserving its projected size at all times cannot be guaranteed alongside readable settings. Four risk-ranked options, complete source-based control inventory, screenshots, size costs and validation criteria are in docs/control-audit-20261016/REPORT.md.
 
 Browser inventory was empty on both attempts. Requested live width-by-stage matrix is incomplete and explicitly marked missing; no firing/final-fire screenshots were invented. Existing supplied/prior screenshots were evaluated separately. No application code, tool behavior, stage logic, history or shelf key changed; no deploy. Stop for the user's choice before implementation.
+
+## 2026-10-16 — Checkpoint A: positioning bugs only
+
+User authorized Playwright installation and Checkpoint A, with no redesign or deployment. Installed Playwright using --no-save --package-lock=false and downloaded Chromium/WebKit; package.json and lockfile remain unchanged. Confirmed real Chromium156.0.8078.4 and WebKit27.2 launches and captured baseline screenshots before changing application CSS.
+
+Only application edit:11 CSS lines restoring starter translateX centering at mobile specificity, clearing stale transforms from compact glaze tray/effects panel, and restoring the existing Your shelf anchor in visible header space. Dock/inspector arrangement, label sizes, tools, geometry, stages, history and shelf key are untouched.
+
+Targeted checks pass in Chromium and WebKit at320,390,430 and compact1280×720: chooser/options inside viewport; glaze labels/panel/tray inside viewport horizontally; six effect checkboxes operable; finish selection works; shelf link visible and navigates correctly; no page errors. Paired before/after screenshots and measured bounds: docs/checkpoint-a-controls/review.html and README.md. These checks do not certify real-device Safari performance or solve large panel overlap with clay.
+
+All eight code regression suites pass. The unchanged workflow-browser.cjs fails before its first Brush interaction because it does not dismiss the starter chooser; this was reproduced before the fix. Independent width-run logs are retained, not hidden or marked passing. No existing workflow assertions were relaxed. Application source changes are confined to interface.css. Checkpoint stops here; no deployment.
