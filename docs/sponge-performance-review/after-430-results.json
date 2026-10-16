@@ -1,0 +1,72 @@
+{
+  "log": [
+    {
+      "step": "Hands: lower and widen",
+      "height": 1.0884746453587077,
+      "radius": 1.42,
+      "depth": 0,
+      "phase": "form"
+    },
+    {
+      "step": "Hands: press center down",
+      "height": 1.0884746453587077,
+      "radius": 1.42,
+      "opening": 0.3582823841725243,
+      "depth": 0.4606666625976559,
+      "phase": "form"
+    },
+    {
+      "step": "Hands: deepen again and widen opening three drags",
+      "height": 1.0884746453587077,
+      "radius": 1.42,
+      "opening": 1.2799999999999998,
+      "depth": 0.8106666625976555,
+      "phase": "form"
+    },
+    {
+      "step": "Wood rib: compress wall",
+      "height": 1.0884746453587077,
+      "radius": 1.42,
+      "opening": 1.2799999999999998,
+      "depth": 0.8106666625976555,
+      "phase": "form"
+    },
+    {
+      "step": "Sponge: finish outside",
+      "height": 1.0884746453587077,
+      "radius": 1.42,
+      "opening": 1.2799999999999998,
+      "depth": 0.8106666625976555,
+      "phase": "form"
+    },
+    {
+      "step": "Connected cylinder pull and Undo",
+      "beforePull": {
+        "height": 1.0884746453587077,
+        "radius": 1.42,
+        "opening": 1.2799999999999998,
+        "depth": 0.8106666625976555,
+        "phase": "form"
+      },
+      "afterPull": {
+        "height": 1.4634746262852214,
+        "radius": 1.42,
+        "opening": 1.2799999999999998,
+        "depth": 1.1856666435241692,
+        "phase": "form"
+      },
+      "undone": {
+        "height": 1.0884746453587077,
+        "radius": 1.42,
+        "opening": 1.2799999999999998,
+        "depth": 0.8106666625976555,
+        "phase": "form"
+      }
+    }
+  ],
+  "errors": [],
+  "holdTiming": {
+    "median": 16.700000000000728,
+    "p95": 83.29999999999927
+  }
+}

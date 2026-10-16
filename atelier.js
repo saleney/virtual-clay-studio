@@ -179,8 +179,11 @@ function joinWrapNormals(meshGeometry, rows) {
 function rebuildMesh() {
   reconcileInterior();
   prepareAlterationAngles();
-  if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
-  if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
+  // Keep GPU resources during shaping; discard the interior only when closing it.
+  if(!state.innerProfile?.length){
+    if(innerGlazeMesh){wheelGroup.remove(innerGlazeMesh);innerGlazeMesh=null;}
+    if(innerMesh){wheelGroup.remove(innerMesh);innerMesh.geometry.dispose();innerMesh.material.dispose();innerMesh=null;}
+  }
   const vertices=[]; const colors=[]; const uvs=[]; const indices=[];
   // Duplicate the first column at U=1. Each side of the texture join can then
   // sample its own edge instead of interpolating all the way across the canvas.
@@ -233,7 +236,7 @@ function rebuildMesh() {
     geometry.setIndex(indices);geometry.deleteAttribute('normal');
   }
   const rawUVs=uvs.map((value,index)=>index%2?value*.85:value);
-  geometry.setAttribute('uv1',new THREE.Float32BufferAttribute(rawUVs,2));
+  updateGeometryAttribute(geometry,'uv1',rawUVs,2);
   geometry.computeVertexNormals();
   joinWrapNormals(geometry,renderRows);
   if(!hasOpening){
@@ -248,6 +251,11 @@ function rebuildMesh() {
   geometry.computeBoundingSphere();
   if(hasOpening)buildInteriorMesh();
   updateWetColors();
+}
+function updateGeometryAttribute(target,name,values,size){
+  const attribute=target.getAttribute(name);
+  if(attribute&&attribute.array.length===values.length){attribute.array.set(values);attribute.needsUpdate=true;}
+  else{target.setAttribute(name,new THREE.Float32BufferAttribute(values,size));if(name==='position')target.deleteAttribute('normal');}
 }
 function buildInteriorMesh(){
   const vertices=[],colors=[],uvs=[],indices=[],top=state.profile.at(-1),inner=state.innerProfile,stride=segments+1;
@@ -271,12 +279,14 @@ function buildInteriorMesh(){
   for(let segment=0;segment<segments;segment++)indices.push(previous+segment,innerTop+segment,previous+segment+1,innerTop+segment,innerTop+segment+1,previous+segment+1);
   const floorCenter=vertices.length/3,floor=inner[0];vertices.push(0,floor.y,0);colors.push(.94*.76,.91*.76,.85*.76);uvs.push(.5,0);
   for(let segment=0;segment<segments;segment++)indices.push(floorCenter,innerStart+segment+1,innerStart+segment);
-  const innerGeometry=new THREE.BufferGeometry();innerGeometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3));innerGeometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));innerGeometry.setAttribute('uv',new THREE.Float32BufferAttribute(uvs,2));const rawUVs=uvs.slice();
+  const innerGeometry=innerMesh?.geometry||new THREE.BufferGeometry();
+  updateGeometryAttribute(innerGeometry,'position',vertices,3);updateGeometryAttribute(innerGeometry,'color',colors,3);updateGeometryAttribute(innerGeometry,'uv',uvs,2);const rawUVs=uvs.slice();
   for(let s=0;s<=segments;s++)rawUVs[s*2+1]=.85;
   const rimStart=(inner.length+1)*stride;
   for(let row=1;row<5;row++)for(let s=0;s<=segments;s++)rawUVs[(rimStart+(row-1)*stride+s)*2+1]=.85+.15*(1-Math.cos(row/5*Math.PI))*.5;
-  innerGeometry.setAttribute('uv1',new THREE.Float32BufferAttribute(rawUVs,2));
-  innerGeometry.setIndex(indices);innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
+  updateGeometryAttribute(innerGeometry,'uv1',rawUVs,2);
+  if(!innerGeometry.index||innerGeometry.index.count!==indices.length)innerGeometry.setIndex(indices);
+  innerGeometry.computeBoundingSphere();innerGeometry.userData.dryColors=new Float32Array(colors);innerGeometry.computeVertexNormals();joinWrapNormals(innerGeometry,inner.length+5);
   // The outer wall and rim are separate meshes, but share continuous lighting.
   const outerNormals=geometry.getAttribute('normal'),rimNormals=innerGeometry.getAttribute('normal');
   const outerStart=(state.profile.length-1)*2*stride;
@@ -285,6 +295,7 @@ function buildInteriorMesh(){
     outerNormals.setXYZ(o,normal.x,normal.y,normal.z);rimNormals.setXYZ(s,normal.x,normal.y,normal.z);
   }
   outerNormals.needsUpdate=true;rimNormals.needsUpdate=true;
+  if(innerMesh)return;
   const innerMaterial=material.clone();innerMaterial.vertexColors=true;innerMaterial.side=THREE.DoubleSide;
   // A tiny warm bounce-light lift keeps the real clay floor readable under its rim.
   innerMaterial.emissive.setHex(0x251a10);innerMaterial.emissiveIntensity=.055;
@@ -313,9 +324,13 @@ function updateMaterial() {
 }
 function localWorkability(index){return 1+.65*(state.localWetness?.[index]||0);}
 function updateWetColors(){
+ const hasWater=state.localWetness?.some(value=>value>0);
  for(const mesh of [clay,innerMesh]){
   const g=mesh?.geometry,colors=g?.getAttribute('color'),positions=g?.getAttribute('position'),dry=g?.userData.dryColors;
   if(!colors||!dry)continue;
+  // Dry clay needs no per-vertex search through the shaping profile.
+  if(!hasWater){if(g.userData.appliedDryColors!==dry){colors.array.set(dry);colors.needsUpdate=true;g.userData.appliedDryColors=dry;}continue;}
+  g.userData.appliedDryColors=null;
   for(let v=0;v<positions.count;v++){
    const y=positions.getY(v);let index=0;
    while(index<state.profile.length-1&&state.profile[index].y<y)index++;

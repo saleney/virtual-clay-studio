@@ -84,3 +84,10 @@
 - Reused existing Drive project journal and its 03 — Handoffs + checkpoints folder; preserved older master case study and field guide. Verified uploaded review metadata and all 20 embedded images in browser.
 - Drive review: https://drive.google.com/file/d/11sOdjn1T6x-DlOT4sVQw942i31ywkpRA/view
 - Explicitly records failed bowl, subsequent bowl/cylinder redo and unresolved held-Sponge mobile-proxy stutter. No physical-device claim, app changes or deployment.
+
+## 2026-10-16 — Sponge resource reuse performance checkpoint
+- Reuse interior mesh/material/geometry attributes during rebuilding; dispose when closing or resetting. Recompute normals and bounds; retain original equations and tools. Reuse outer raw UV attributes. Dry-color updates skip vertex/profile wetness searches and unchanged uploads.
+- Isolated390px/4×CPU benchmark,40 sponge/render submissions: median93→40.6ms, p95384.1→65.3ms,40 material identities→1. Interior position/color hashes identical after equal sponge updates. These are CPU-side submission measurements, not real-phone GPU completion/FPS.
+- Full interaction checks at320/390/430/1280, opening/pull/Undo; final390 rerun after dry-color optimization. Eight Node suites,390/1280 material lifecycle/effects checks and build passed.
+- Performance remains a limitation: expensive updates still exceed16.7ms. Frame samples remain variable; no claim of eliminating mobile stutter. No physical device tested. Evidence and scripts: docs/sponge-performance-review/.
+- Local Git checkpoint only, no deployment or Drive copy (incremental rather than milestone archive).
