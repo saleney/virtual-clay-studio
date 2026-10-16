@@ -601,7 +601,14 @@ function fitGrowingClay(){
   }
   cameraFitPending=false;
 }
-function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();applyHeldSmoothing(dt);dryWater(dt);renderer.render(scene,camera);requestAnimationFrame(render);}
+// A perceptual motion cue, not smoothing: only raw micro-relief loses contrast.
+function updateMovingGrain(){
+ if(state.phase!=='form')return;
+ const speed=THREE.MathUtils.clamp(Math.abs(state.wheel.speed)/6,0,1);
+ const strength=.7*(1-.55*speed*speed*(3-2*speed));
+ for(const target of [material,innerMesh?.material])if(target?.normalMap===rawClayMaps.normal)target.normalScale.set(strength,strength);
+}
+function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();applyHeldSmoothing(dt);dryWater(dt);updateMovingGrain();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;

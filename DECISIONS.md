@@ -63,3 +63,8 @@
 - Added Needle within Carve's existing tip selector; no new main tool or stage. Shallow local incisions (base depth.01, height radius.035, angle radius.045); bounded existing stroke sampling and depth controls. Tap/drag and keyboard paths use the local-cut engine. No piercing or rim removal.
 - Existing Line/Scoop, all ribs and glaze method browser regressions passed at390/1280px. Needle actual drag creates narrow marks; exact Undo/Redo passed. Eight Node suites passed. Evidence in docs/needle-motion-review (shared with motion checkpoint).
 - Local only; no deployment.
+
+## 2026-10-15 — Motion-detail checkpoint
+- Raw normal-map strength follows actual wheel speed with a smooth curve: .7 stopped → .315 at6rad/s. Uses existing map/uniforms, no new textures, geometry or postprocess. Fired phases are excluded. This reduces micro-relief contrast; it is not true temporal blur.
+- Browser390/1280px verifies stop→medium→fast→stop strengths and exact unchanged profile/history. Needle actual drags and Undo/Redo passed; no page errors. Frame intervals around33.3/33.4ms median/p95 in this run, unthrottled desktop Chrome at phone/desktop viewport sizes. Real phone and throttled performance for this checkpoint remain unverified.
+- Local review: docs/needle-motion-review/review.html, screenshots and results.json. Sponge, Needle, motion checkpoints saved separately. No deployment.
