@@ -97,3 +97,14 @@
 User approved both controls and the bounded shaping option, then requested deployment. Separate the stationary actions from the movable desktop palette. Phones start compact, with their selected-tool hint visible and settings behind an expand control. Preserve 44 px targets, keyboard movement, reset position, resize recovery and safe-area offsets.
 
 Hands shoulder closure uses narrower falloff and carries the inner profile with local radial changes before safety reconciliation; low contact includes the foot. No Rib/Sponge rewrite, guide outline, stage or history changes. Existing radial-thickness limitations remain. Review evidence and explicit browser testing limitations: docs/palette-shoulder-review/README.md. Previous oversized dock screenshots are retained as intermediate history, not final approval evidence.
+
+
+## 2026-10-16 — Control-system research; awaiting user choice
+
+Research only, following supplied real-iPhone screenshots. The previous collapsed-layout check was insufficient: expanded Brush/slip covers ~53% of the pictured content area; open glaze customization covers ~50% and clips options; starter choices extend off-screen. These are manual screenshot panel estimates, not percentages of clay hidden. Current collapsed phone tool names are 9px, not the earlier documented11px.
+
+Source findings: competing positioned layouts; mobile starter transform:none!important conflicts with later50% centering; glaze-effects static-flow override leaves translateX(-50%); compact desktop tray may retain its centering transform; max-height760px changes layout even at wide desktop sizes; visible shelf link is globally hidden. No code fixes made.
+
+Recommended direction (not approved): stage-aware bounded mobile dock plus desktop side inspector, with a protected clay region,14–16px labels and44px minimum targets. Settings replace content rather than overlaying the clay. Explain the real space tradeoff: a tall form at320px may require view fitting between gestures; preserving its projected size at all times cannot be guaranteed alongside readable settings. Four risk-ranked options, complete source-based control inventory, screenshots, size costs and validation criteria are in docs/control-audit-20261016/REPORT.md.
+
+Browser inventory was empty on both attempts. Requested live width-by-stage matrix is incomplete and explicitly marked missing; no firing/final-fire screenshots were invented. Existing supplied/prior screenshots were evaluated separately. No application code, tool behavior, stage logic, history or shelf key changed; no deploy. Stop for the user's choice before implementation.
