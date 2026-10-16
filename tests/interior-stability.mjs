@@ -49,3 +49,18 @@ for(const size of [5,10,15]){
  assert.ok(state.profile.at(-1).y<=height+1e-8,'Upward rib movement must not stretch clay');
  console.log(`${size} lb: rib compression, opening, widening, and attached rim passed`);
 }
+
+// A wide floor must be able to carry the shell outward, with no .62 depth ceiling.
+for(const size of [5,10,15]){
+ const scale=Math.cbrt(size/5);context.clayAmountScale=()=>scale;
+ const state=context.state;state.pointer=null;state.profile=Array.from({length:42},(_,i)=>({y:-1.43+i*.04*scale,r:.8*scale}));state.innerProfile=null;
+ context.openClay(.1);for(let i=0;i<40;i++)context.openClay(.025);
+ assert.ok(context.interiorInfo().depth>.62,'Tall clay should open deeper than the old fixed limit');
+ assert.ok(state.innerProfile[0].y>=state.profile[0].y+.219);
+ for(let i=0;i<50;i++)context.widenInterior(.025);
+ assert.ok(state.profile.at(-1).r>.8*scale,'Inside widening carries the shell outward');
+ assert.ok(state.profile.at(-1).r-state.innerProfile.at(-1).r>=.119,'Rim thickness remains supported');
+ const height=state.profile.at(-1).y-state.profile[0].y;
+ assert.ok(height<2*scale,'Widening must not launch the pot upwards');
+ console.log(size,'lb: connected shell, deeper opening, protected floor and stable height');
+}

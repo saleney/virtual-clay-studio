@@ -744,7 +744,7 @@ function applyHeight(index,amount){
  const basePressure=index<=Math.ceil(state.profile.length*.15),base=state.profile[0].y,height=state.profile.at(-1).y-base;
  // Low contact lifts or settles the whole lump: its footprint may change,
  // while only the contact plane (not the radius) stays anchored to the wheel.
- state.profile.forEach((ring,i)=>{if(i===0)return;const t=basePressure?(ring.y-base)/Math.max(.001,height):THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1);ring.y+=limited*(basePressure?t:t*t*(3-2*t));});
+ state.profile.forEach((ring,i)=>{if(i===0)return;const connected=basePressure||Boolean(state.innerProfile);const t=connected?(ring.y-base)/Math.max(.001,height):THREE.MathUtils.clamp((i-from)/Math.max(1,index-from),0,1);ring.y+=limited*(connected?t:t*t*(3-2*t));});
  stabilizeProfile();balanceClayVolume(target,index);
 }
 function applySponge(index){
@@ -842,7 +842,7 @@ function moveContact(clientX,clientY,active){
 }
 function updateToolUI(){
  const form=state.phase==='form',glazing=state.phase==='glaze',editable=form||glazing;
- const hints={hand:'Hands · Pull up to lift. Drag down at the center to open.',rib:'Rib · Follow the curve; press inward or outward. Center opens downward.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Touch to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
+ const hints={hand:state.innerProfile?'Hands · Inside: down to deepen, outward to widen, up to pull.':'Hands · Drag down at the center to open.',rib:'Rib · Follow the curve; press inward or outward. Center opens downward.',carve:'Carve · Drag for a shallow groove. Sponge softens it.',sponge:'Sponge · Hold to soften marks; keep working to smooth.',brush:glazing?'Glaze brush · Touch to paint.':state.brushMaterial==='water'?'Water brush · Wet a section; it will be softer to shape.':'Slip brush · Choose a color, then brush the clay.'};
  const hint=document.querySelector('[data-tool-hint]');if(hint)hint.textContent=hints[state.tool]||hints.hand;
  document.querySelectorAll('[data-undo]').forEach(button=>button.disabled=!editable||!state.undoActions?.length);
  document.querySelectorAll('[data-redo]').forEach(button=>button.disabled=!editable||!state.redoActions?.length);
@@ -872,7 +872,7 @@ function outerRadiusAt(y){
   return state.profile.at(-1).r;
 }
 function setInterior(depth,radius){
-  const top=state.profile.at(-1).y;const floorY=THREE.MathUtils.clamp(top-depth,state.profile[0].y+.22,top-.025);const outerAtFloor=outerRadiusAt(floorY);const maxRadius=Math.max(.035,Math.min(outerAtFloor-.16,state.profile.at(-1).r-.12));const rimRadius=THREE.MathUtils.clamp(radius,.08,maxRadius);const floorRadius=Math.max(.035,rimRadius*.58);const lift=top-floorY;
+  const top=state.profile.at(-1).y;const floorY=THREE.MathUtils.clamp(top-depth,state.profile[0].y+.22,top-.025);const outerAtFloor=outerRadiusAt(floorY);const maxRadius=Math.max(.035,Math.min(outerAtFloor-.16,state.profile.at(-1).r-.12));const rimRadius=THREE.MathUtils.clamp(radius,.08,maxRadius);const floorRadius=Math.max(.035,rimRadius*.88);const lift=top-floorY;
   const innerRings=9;
   state.innerProfile=Array.from({length:innerRings},(_,index)=>{
     const t=index/(innerRings-1), eased=t*t*(3-2*t);
@@ -904,7 +904,7 @@ function openClay(depthDelta,radiusDelta=0){
     // Deepening must retain the opening already pulled by the potter. Rebuilding
     // it from a preset floor/rim ratio used to shrink wide openings on the next drag.
     const top=state.profile.at(-1).y;
-    const floorY=Math.max(state.profile[0].y+.22,top-THREE.MathUtils.clamp(current.depth+depthDelta,.052,.62));
+    const floorY=Math.max(state.profile[0].y+.22,top-THREE.MathUtils.clamp(current.depth+depthDelta,.052,top-state.profile[0].y-.22));
     const oldFloor=current.floorY,oldDepth=Math.max(.001,top-oldFloor);
     state.innerProfile.forEach(ring=>{
       const t=(ring.y-oldFloor)/oldDepth;
@@ -920,20 +920,23 @@ function openClay(depthDelta,radiusDelta=0){
 function widenInterior(amount){
   amount*=localWorkability(state.pointer?.index??state.profile.length-1);
   if(!state.innerProfile)return;
-  // Pulling from inside moves the inner floor most. The upper inner rings follow
-  // softly, so the outside silhouette stays put while a believable wall develops.
-  const last=state.innerProfile.length-1;
-  state.innerProfile.forEach((ring,index)=>{
-    const falloff=THREE.MathUtils.lerp(1,.48,index/last);
-    const safeRadius=Math.max(.018,outerRadiusAt(ring.y)-.16);
-    ring.r=THREE.MathUtils.clamp(ring.r+amount*falloff,.018,safeRadius);
+  // Interior pressure travels through the wall instead of stopping at the shell.
+  const limit=1.42*clayAmountScale(),wall=.14;
+  const step=THREE.MathUtils.clamp(amount,-.045,.045),floor=state.innerProfile[0].y;
+  state.innerProfile.forEach(ring=>{ring.r=THREE.MathUtils.clamp(ring.r+step,.035,limit-wall);});
+  state.profile.forEach(ring=>{
+    // A smooth connection below the floor prevents a pinched pedestal.
+    const blend=THREE.MathUtils.clamp((ring.y-(floor-.22))/.22,0,1);
+    let inside=state.innerProfile[0].r;
+    for(let i=1;i<state.innerProfile.length;i++){
+      const low=state.innerProfile[i-1],high=state.innerProfile[i];
+      if(ring.y<=high.y){inside=THREE.MathUtils.lerp(low.r,high.r,THREE.MathUtils.clamp((ring.y-low.y)/Math.max(.001,high.y-low.y),0,1));break;}
+      inside=high.r;
+    }
+    const required=inside+wall;
+    if(required>ring.r||(step<0&&ring.r-required<.22))ring.r=THREE.MathUtils.clamp(ring.r+(required-ring.r)*blend,minRadius,limit);
   });
-  // Soften only the inner floor-to-wall transition, retaining its overall pull.
-  for(let pass=0;pass<2;pass++){
-    const next=state.innerProfile.map(ring=>ring.r);
-    for(let i=1;i<state.innerProfile.length-1;i++)next[i]=state.innerProfile[i-1].r*.16+state.innerProfile[i].r*.68+state.innerProfile[i+1].r*.16;
-    for(let i=1;i<state.innerProfile.length-1;i++)state.innerProfile[i].r=next[i];
-  }
+  stabilizeProfile();reconcileInterior();
   rebuildMesh();state.strokeChanged=true;
 }
 function onDown(event){
@@ -964,10 +967,13 @@ function onMove(event){
     else{if(hit)applyCarve(profileIndexFromHit(hit));status.textContent='A small groove gathers beneath the carving tool.';}
     carveSlip(hit?.uv);
   }
-  else if(state.pointer.mode==='start'&&dy>0){openClay(dy*.0017);state.pointer.mode='inside';status.textContent='A small clay floor appears beneath the cursor.';}
+  else if(state.pointer.mode==='start'&&dy>0){openClay(dy*.0017);state.pointer.mode='inside';state.pointer.insideAction='deepen';status.textContent='Drag down to deepen the opening.';}
   else if(state.pointer.mode==='inside'){
-    if(dy>0&&Math.abs(dy)>Math.abs(dx)*.72){openClay(dy*.00155);status.textContent='The inner floor deepens, held above the wheel.';}
-    else if(Math.abs(dx)>1){widenInterior(Math.abs(dx)*.0027);status.textContent='The inner floor travels outward; the outside stays steady.';}
+    const gesture=state.pointer;
+    if(!gesture.insideAction){gesture.insideAction=vertical?(dy>0||state.tool==='rib'?'deepen':'pull'):'widen';gesture.widenSide=Math.sign(dx)||1;}
+    if(gesture.insideAction==='deepen'){openClay(dy*.0025);status.textContent='Deepen the opening; the floor stays protected.';}
+    else if(gesture.insideAction==='pull'){applyHeight(gesture.index,-dy*.0025);rebuildMesh();state.strokeChanged=true;status.textContent='Pull up to raise the connected wall.';}
+    else{widenInterior(dx*gesture.widenSide*.004);status.textContent='The floor and wall open outward together.';}
   }
   else {
     if(state.tool==='rib'){const hit=getHit(event);if(hit){state.pointer.index=profileIndexFromHit(hit);compressRib(state.pointer.index,radial,dy);contact?.style.setProperty('--rib-angle',`${Math.atan2(dx,-dy)*180/Math.PI}deg`);}}
