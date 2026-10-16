@@ -58,3 +58,8 @@
 - Broad contour smoothing reduced from.12 to.035 per contact update. Rib compression/recovery unchanged. Carving remains available during Throwing; no simulated drying gate added.
 - Eight Node suites passed, including new shallow/deep/full-ring and returning-from-Rib checks. Browser390/1280px: held contact, repeat contact and exact Undo/Redo passed with no errors. Build passed.
 - Evidence: docs/sponge-tool-review/. Local only; no deployment.
+
+## 2026-10-15 — Needle checkpoint
+- Added Needle within Carve's existing tip selector; no new main tool or stage. Shallow local incisions (base depth.01, height radius.035, angle radius.045); bounded existing stroke sampling and depth controls. Tap/drag and keyboard paths use the local-cut engine. No piercing or rim removal.
+- Existing Line/Scoop, all ribs and glaze method browser regressions passed at390/1280px. Needle actual drag creates narrow marks; exact Undo/Redo passed. Eight Node suites passed. Evidence in docs/needle-motion-review (shared with motion checkpoint).
+- Local only; no deployment.

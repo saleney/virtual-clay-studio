@@ -443,3 +443,4 @@
 @media(max-width:620px){.rib-settings{top:auto;bottom:180px;left:12px;right:12px;max-width:none}.slip-tray:has([data-tool="rib"][aria-pressed="true"]) .rib-settings{flex-direction:row;align-items:center;justify-content:space-between}}
 
 .contact--rib[data-rib="wood"]{width:12px;height:64px;border-radius:8px}.contact--rib[data-rib="metal"]{width:4px;height:40px;border-radius:1px;background:#d6d8d299}.contact--rib[data-rib="rubber"]{width:16px;height:36px;border-radius:50%;background:#9bada266}.contact--carve[data-tip="scoop"]{width:18px;height:28px;border-radius:50%}
+.contact--carve[data-tip="needle"]{width:5px;height:5px;border-radius:50%;border-width:1px}
