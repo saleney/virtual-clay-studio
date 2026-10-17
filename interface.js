@@ -123,3 +123,17 @@ function releasePhoneDock(event){if(event.pointerId!==phoneDockPointer)return;ph
 for(const type of ['pointerup','pointercancel','lostpointercapture'])document.addEventListener(type,releasePhoneDock,true);
 new ResizeObserver(()=>window.dispatchEvent(new Event('resize'))).observe(document.querySelector('[data-stage]'));
 const phoneStartHint=document.createElement('p');phoneStartHint.className='phone-start-hint';phoneStartHint.textContent='Touch clay to begin';controls.prepend(phoneStartHint);
+
+// Desktop uses a separate native dialog; phones retain the dock settings view.
+const effectsDetails=document.querySelector('.finish-effects');
+const effectsPanel=document.querySelector('.finish-effects-panel');
+const effectsDialog=document.createElement('dialog');effectsDialog.className='desktop-effects-dialog';effectsDialog.setAttribute('aria-labelledby','effects-dialog-title');
+const dialogTitle=document.createElement('h2');dialogTitle.id='effects-dialog-title';dialogTitle.textContent='Customize glaze';
+const closeEffects=document.createElement('button');closeEffects.type='button';closeEffects.textContent='Done';
+effectsDialog.append(dialogTitle,closeEffects);document.body.append(effectsDialog);
+function restoreEffects(){effectsDetails.append(effectsPanel);effectsDetails.open=false;}
+closeEffects.addEventListener('click',()=>effectsDialog.close());
+effectsDialog.addEventListener('close',()=>{restoreEffects();if(!phoneQuery.matches)effectsDetails.querySelector('summary').focus();});
+effectsDetails.querySelector('summary').addEventListener('click',event=>{if(phoneQuery.matches)return;event.preventDefault();effectsDetails.open=false;effectsDialog.insertBefore(effectsPanel,closeEffects);effectsDialog.showModal();});
+function desktopControls(){if(phoneQuery.matches){if(effectsDialog.open)effectsDialog.close();restoreEffects();}else controls.prepend(recovery);}
+phoneQuery.addEventListener('change',desktopControls);desktopControls();

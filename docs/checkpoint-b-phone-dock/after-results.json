@@ -11,14 +11,14 @@
     },
     "tray": {
       "x": 8,
-      "y": 399,
+      "y": 403,
       "width": 304,
       "height": 168
     },
     "shelf": {
-      "x": 217.984375,
-      "y": 569,
-      "width": 94.015625,
+      "x": 223.984375,
+      "y": 573,
+      "width": 88.015625,
       "height": 44
     },
     "shots": [
@@ -47,14 +47,14 @@
     },
     "tray": {
       "x": 8,
-      "y": 576,
+      "y": 580,
       "width": 374,
       "height": 168
     },
     "shelf": {
-      "x": 287.984375,
-      "y": 746,
-      "width": 94.015625,
+      "x": 293.984375,
+      "y": 750,
+      "width": 88.015625,
       "height": 44
     },
     "shots": [
@@ -63,6 +63,216 @@
       "rib-settings",
       "carve-settings",
       "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "chromium",
+    "width": 430,
+    "height": 844,
+    "starter": {
+      "x": 8,
+      "y": 672.40625,
+      "width": 414,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 580,
+      "width": 414,
+      "height": 168
+    },
+    "shelf": {
+      "x": 333.984375,
+      "y": 750,
+      "width": 88.015625,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "chromium",
+    "width": 1280,
+    "height": 720,
+    "starter": {
+      "x": 430,
+      "y": 520.21875,
+      "width": 420,
+      "height": 179.78125
+    },
+    "tray": {
+      "x": 24,
+      "y": 469.203125,
+      "width": 1232,
+      "height": 140.796875
+    },
+    "shelf": {
+      "x": 1151.953125,
+      "y": 80,
+      "width": 104.046875,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "webkit",
+    "width": 320,
+    "height": 667,
+    "starter": {
+      "x": 8,
+      "y": 495.40625,
+      "width": 304,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 403,
+      "width": 304,
+      "height": 168
+    },
+    "shelf": {
+      "x": 221.625,
+      "y": 573,
+      "width": 90.375,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "webkit",
+    "width": 390,
+    "height": 844,
+    "starter": {
+      "x": 8,
+      "y": 672.40625,
+      "width": 374,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 580,
+      "width": 374,
+      "height": 168
+    },
+    "shelf": {
+      "x": 291.625,
+      "y": 750,
+      "width": 90.375,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "webkit",
+    "width": 430,
+    "height": 844,
+    "starter": {
+      "x": 8,
+      "y": 672.40625,
+      "width": 414,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 580,
+      "width": 414,
+      "height": 168
+    },
+    "shelf": {
+      "x": 331.625,
+      "y": 750,
+      "width": 90.375,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "webkit",
+    "width": 1280,
+    "height": 720,
+    "starter": {
+      "x": 430,
+      "y": 520.21875,
+      "width": 420,
+      "height": 179.78125
+    },
+    "tray": {
+      "x": 24,
+      "y": 469.203125,
+      "width": 1232,
+      "height": 140.796875
+    },
+    "shelf": {
+      "x": 1149.984375,
+      "y": 80,
+      "width": 106.015625,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
       "firing",
       "glazing",
       "effects",

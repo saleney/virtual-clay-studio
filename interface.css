@@ -715,3 +715,25 @@
  .studio.phone-layout .phone-dock :is(.phone-tool-hint,.phone-start-hint){line-height:18px}
  .studio.phone-layout .phone-dock .finish-effects-panel label{font-size:13px}
 }
+/* Desktop controls: recovery and speed share one row; glaze settings are modal. */
+@media(min-width:621px){
+ .studio .controls>.recovery-controls{position:static!important;inset:auto!important;transform:none;display:flex;flex:none;gap:4px;padding:0;background:none}
+ .studio .controls{gap:8px}
+ .studio .work-surface:is(.is-firing,.is-final-firing,.is-complete)~.bottom-interface .recovery-controls{display:none}
+ .studio .glaze-tray{left:24px!important;right:24px!important;bottom:110px!important;width:auto;transform:none;max-height:none;padding:8px;gap:6px 12px}
+ .studio:has(>.work-surface.is-glazing) .glaze-tray{display:grid;grid-template-columns:auto auto minmax(180px,280px);justify-content:start;align-items:center}
+ .studio .glaze-selection{grid-column:1/-1}
+ .studio .glaze-colors{grid-column:1/-1;justify-content:flex-start;gap:6px!important;width:auto}
+ .studio .finish-effects{grid-column:1;grid-row:3}
+ .studio .coat-glaze{grid-column:2;grid-row:3}
+ .studio .glaze-size{grid-column:3;grid-row:3;display:flex;flex-wrap:nowrap;gap:6px;width:100%;min-width:0}
+ .studio .glaze-size input{min-width:60px;flex:1;width:100px}
+}
+.desktop-effects-dialog{width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:#f4ead8;color:var(--ink);border:1px solid #a38c6c;border-radius:12px;padding:20px;font:14px/1.4 ui-monospace,monospace}
+.desktop-effects-dialog::backdrop{background:#30251855}
+.desktop-effects-dialog h2{font:22px Georgia,serif;margin:0 0 12px}
+.desktop-effects-dialog .finish-effects-panel{display:grid;position:static;inset:auto;transform:none;grid-template-columns:1fr 1fr;gap:4px 12px;width:100%;max-width:none;padding:0;background:none;box-shadow:none}
+.desktop-effects-dialog .finish-effects-panel label{display:flex;align-items:center;min-height:44px;gap:6px}
+.desktop-effects-dialog .finish-effects-panel :is(.piece-finish,.effect-intensity,small){grid-column:1/-1}
+.desktop-effects-dialog select{font-size:16px;min-height:44px;margin-left:auto}
+.desktop-effects-dialog button{display:block;margin:12px 0 0 auto;min-height:44px;padding:8px 20px;background:#66503b;color:#fff7e8;border:0;border-radius:6px;font:14px ui-monospace,monospace}

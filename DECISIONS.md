@@ -153,3 +153,15 @@ Known pre-existing desktop issue: compact WebKit effects disclosure may be obscu
 2. Explicitly verify the dock/canvas bounds stay steady during the initial touch and refit only after release; verify all single-line hints and visible control text fit.
 3. Refresh resize screenshots and documentation for content-sized dock/13px labels. Run required regressions if source changed beyond styling, then save a final Git checkpoint.
 4. Keep everything local; stop for review, no deploy.
+
+## 2026-10-17 — Desktop alignment, vocabulary guide and human review
+
+User authorized desktop follow-up: Undo/Redo to the left of wheel speed on the same row; Customize glaze and Dip whole piece shifted left with brush settings alongside. Customize glaze opens a separate native modal dialog with Done/Escape and focus restoration, without growing the current toolbar. Phones keep their dock settings/Back flow. Added a live390px iframe preview.
+
+User requested an interactive terminology guide to improve how they describe interface changes. Added docs/interface-guide/index.html: twelve interface concepts, working dialog/popover/drawer examples, spacing control, responsive example, selected/disabled states, editable prompt builder/copy, and a short terminology exercise. It is clearly labeled as a simplified teaching example, not the clay simulator.
+
+User intends to ask UX/product designer friends for feedback and wants to avoid overwhelming them. Added a short shareable reviewer page and REPORT.md under docs/interface-review-20261017/. Ask only three things: attention/clay focus, unclear controls, and one useful grouping/layout change. Two or three screenshot notes are sufficient. Detailed history is optional. The product remains open to critique; user dissatisfaction is not evidence of a personal failing. No messages were sent to friends.
+
+Final studio matrix passed Chromium/WebKit at320,390,430,1280 with current compact13px phone labels and content-sized dock. Separate desktop/mobile checks passed recovery/speed alignment, glaze-row alignment, fixed tray dimensions while opening the modal, effect selection and Done. Guide checks passed both engines at320/1280. All eight regression suites passed. Evidence: docs/interface-review-20261017/browser-results.txt and regression-results.txt; refreshed checkpoint-b screenshots; desktop-controls-20261017 screenshots; interface-guide screenshots.
+
+The latest explicit “deploy” supersedes earlier local-only instructions for this release. Publish the tested current studio plus guide/reviewer brief to the existing GitHub Pages main/root source. Keep the review framed as a work in progress; no claim of physical-device certification or completed UX design. Deployment outcome will be recorded after confirmation.

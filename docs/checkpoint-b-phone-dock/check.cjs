@@ -30,7 +30,7 @@ try{for(const width of [320,390,430,1280]){
  await page.locator('.finish-effects summary').click();await shot('effects');await regions();
  for(const effect of await page.locator('[data-glaze-effect]').all()){await effect.check();assert(await effect.isChecked());}
  await page.locator('[data-piece-finish]').selectOption('gloss');
- if(width<=620)await page.locator('.phone-back').click();else {await page.locator('.finish-effects summary').focus();await page.keyboard.press('Enter');}
+ if(width<=620)await page.locator('.phone-back').click();else await page.getByRole('button',{name:'Done',exact:true}).click();
  const tray=await page.locator('.glaze-tray').boundingBox(),shelf=await page.locator('.shelf-link').boundingBox();assert(shelf,'Shelf reachable');
  await page.locator('[data-coat-glaze]').click();await page.locator('[data-finish]').click();await shot('final-fire');await regions();await page.locator('.work-surface.is-complete').waitFor({timeout:15000});await shot('complete');await regions();
  results.push({engine,width,height,starter,tray,shelf,shots,errors});assert.deepEqual(errors,[]);await page.close();console.log(mode,engine,width,'done');
