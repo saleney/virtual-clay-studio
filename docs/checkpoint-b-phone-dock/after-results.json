@@ -1,0 +1,74 @@
+[
+  {
+    "engine": "chromium",
+    "width": 320,
+    "height": 667,
+    "starter": {
+      "x": 8,
+      "y": 495.40625,
+      "width": 304,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 399,
+      "width": 304,
+      "height": 168
+    },
+    "shelf": {
+      "x": 217.984375,
+      "y": 569,
+      "width": 94.015625,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  },
+  {
+    "engine": "chromium",
+    "width": 390,
+    "height": 844,
+    "starter": {
+      "x": 8,
+      "y": 672.40625,
+      "width": 374,
+      "height": 121.59375
+    },
+    "tray": {
+      "x": 8,
+      "y": 576,
+      "width": 374,
+      "height": 168
+    },
+    "shelf": {
+      "x": 287.984375,
+      "y": 746,
+      "width": 94.015625,
+      "height": 44
+    },
+    "shots": [
+      "starter",
+      "throwing",
+      "rib-settings",
+      "carve-settings",
+      "brush-settings",
+      "firing",
+      "glazing",
+      "effects",
+      "final-fire",
+      "complete"
+    ],
+    "errors": []
+  }
+]

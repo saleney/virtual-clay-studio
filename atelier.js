@@ -13,6 +13,7 @@ let firingTimer, phaseNoteTimer, carveStrokeId=0;
 let wetness=0,wetColorTime=0;
 let slipMesh=null,innerSlipMesh=null,slipMaterial=null,slipTexture=null;
 const wetClayTint=new THREE.Color(0x89765d), materialColor=new THREE.Color();
+let phoneResizePending=false;
 let baseFramingFov=43,cameraFitPending=true,framingSignature=null;
 let alterationBands=new Map(),alterationAngles=[],alterationSignature=null;
 const shelfStorageKey='virtual-clay-studio-shelf-v1'+(new URLSearchParams(location.search).has('qa')?'-qa':'');
@@ -177,6 +178,7 @@ function joinWrapNormals(meshGeometry, rows) {
   normals.needsUpdate=true;
 }
 function rebuildMesh() {
+  if(matchMedia('(max-width:620px)').matches)cameraFitPending=true;
   reconcileInterior();
   prepareAlterationAngles();
   // Keep GPU resources during shaping; discard the interior only when closing it.
@@ -570,11 +572,11 @@ function applyHeldGlaze(){if(state.phase!=='glaze'||!state.glaze.pointer)return;
 function enterGlaze(){if(state.phase!=='fired')return;state.phase='glaze';slipMesh=glazeMesh;innerSlipMesh=innerGlazeMesh;slipMaterial=glazeMaterial;slipTexture=glazeTexture;glazeMesh=innerGlazeMesh=null;makeGlazeLayer();state.glaze={history:[],redo:[],pointer:null,before:null,changed:false};state.undoActions=[];state.redoActions=[];setWheelSpeed(.75);surface.classList.add('is-glazing');selectTool('brush');selectGlazeColor(state.glazeColor);stageNote.textContent='brush glaze onto the ceramic';caption.textContent='Choose a glaze, then touch the ceramic. Hold for a band or drift for a spiral.';status.textContent='Touch the outside, rim, or inside to brush on glaze.';}
 // Keep the pottery at least as prominent as the pre-pan interface; the pan
 // adds surrounding hardware, never a reason to shrink the user's piece.
-function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);
+function resize(){if(matchMedia('(max-width:620px)').matches&&(state.pointer||state.glaze.pointer)){phoneResizePending=true;return;}const r=stage.getBoundingClientRect();renderer.setSize(r.width,r.height,false);
   const phone=matchMedia('(max-width:620px)').matches;
   const viewportScale=r.height/stage.clientHeight;
-  const topReserve=(phone?75:76)*viewportScale;
-  const framingHeight=Math.max(240,r.height-topReserve-(phone?170:130)*viewportScale);
+  const topReserve=(phone?0:76)*viewportScale;
+  const framingHeight=phone?r.height:Math.max(240,r.height-topReserve-130*viewportScale);
   camera.clearViewOffset();camera.aspect=r.width/framingHeight;
   camera.fov=phone?43:(camera.aspect<1.4?44:34);
   // Draw above and below the original framing, so tall clay is never clipped by a header strip.
@@ -590,7 +592,7 @@ function resize(){const r=stage.getBoundingClientRect();renderer.setSize(r.width
   baseFramingFov=camera.fov;cameraFitPending=true;framingSignature=null;
   renderFinishedShelves();}
 function setCamera(){const radius=7.15;camera.position.set(Math.sin(state.yaw)*radius,2.68+state.pitch*.2,Math.cos(state.yaw)*radius);camera.lookAt(0,-1.15,0);}
-// Fit only on initialization or viewport resize; size choices and tools keep hardware fixed.
+// Desktop framing is unchanged. Phones refit changed forms only after a gesture ends.
 function fitGrowingClay(){
   const signature=state.profile.map(r=>`${r.r.toFixed(3)},${r.y.toFixed(3)}`).join(';');
   if(signature===framingSignature){cameraFitPending=false;return;}
@@ -601,7 +603,7 @@ function fitGrowingClay(){
   const invite=firstInvite.getBoundingClientRect();
   const hint=document.querySelector('[data-tool-hint]')?.getBoundingClientRect();
   // Side-mounted tools and recovery do not reserve a full-width band above clay.
-  const safeTop=r.top+(phone?70:100); // Stage layout: framing is independent of document scroll.
+  const safeTop=r.top+(phone?8:100); // Stage layout: framing is independent of document scroll.
   const tools=document.querySelector('.tool-row').getBoundingClientRect();
   const controls=document.querySelector('.controls').getBoundingClientRect();
   const safeBottom=r.bottom-20;
@@ -623,7 +625,7 @@ function updateMovingGrain(){
  const strength=.7*(1-.55*speed*speed*(3-2*speed));
  for(const target of [material,innerMesh?.material])if(target?.normalMap===rawClayMaps.normal)target.normalScale.set(strength,strength);
 }
-function render(time){const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending)fitGrowingClay();applyHeldGlaze();applyHeldSmoothing(dt);dryWater(dt);updateMovingGrain();renderer.render(scene,camera);requestAnimationFrame(render);}
+function render(time){if(phoneResizePending&&!state.pointer&&!state.glaze.pointer){phoneResizePending=false;resize();}const dt=Math.min((time-lastTime)/1000,.05);lastTime=time;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;const acceleration=reduced?1.35:2.5;state.wheel.speed=THREE.MathUtils.damp(state.wheel.speed,state.wheel.target,acceleration,dt);state.wheel.angle+=state.wheel.speed*dt;wheelGroup.rotation.y=state.wheel.angle;setCamera();if(cameraFitPending&&(!matchMedia('(max-width:620px)').matches||(!state.pointer&&!state.glaze.pointer)))fitGrowingClay();applyHeldGlaze();applyHeldSmoothing(dt);dryWater(dt);updateMovingGrain();renderer.render(scene,camera);requestAnimationFrame(render);}
 function getHitAt(clientX,clientY){
   const r=renderer.domElement.getBoundingClientRect();
   pointer.x=((clientX-r.left)/r.width)*2-1;pointer.y=-((clientY-r.top)/r.height)*2+1;

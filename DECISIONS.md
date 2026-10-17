@@ -118,3 +118,38 @@ Only application edit:11 CSS lines restoring starter translateX centering at mob
 Targeted checks pass in Chromium and WebKit at320,390,430 and compact1280×720: chooser/options inside viewport; glaze labels/panel/tray inside viewport horizontally; six effect checkboxes operable; finish selection works; shelf link visible and navigates correctly; no page errors. Paired before/after screenshots and measured bounds: docs/checkpoint-a-controls/review.html and README.md. These checks do not certify real-device Safari performance or solve large panel overlap with clay.
 
 All eight code regression suites pass. The unchanged workflow-browser.cjs fails before its first Brush interaction because it does not dismiss the starter chooser; this was reproduced before the fix. Independent width-run logs are retained, not hidden or marked passing. No existing workflow assertions were relaxed. Application source changes are confined to interface.css. Checkpoint stops here; no deployment.
+
+## 2026-10-16 — Checkpoint B: phone dock, compactness and clay-first follow-up
+
+### Approved direction and latest user decisions
+- Phone-only Option 2: controls occupy a separate dock below the clay. Desktop redesign is deferred. No deployment.
+- Clay and wheel are the focal point. Give them as much space as possible; do not shrink them to accommodate unnecessary panel space.
+- **Do not reserve a fixed-height dock.** The initial310px reservation left unwanted gaps under the tool hint and between the starter instruction and shelf. Replaced with a content-sized dock, capped at320px/52dvh; settings may scroll inside it. Unused space returns to the clay region.
+- Tighten related gaps to2–4px. No empty recovery row: Undo/Redo share the firing-action row. New clay remains visually separate.
+- Keep **Earthenware, Stoneware and Porcelain in ONE row**, including320px. Three equal cards, small swatch above each full name.
+- Put **“Touch clay to begin” and “Your shelf” in one compact row**; no blank region between them.
+- Do not repeat the selected tool name in the hint. Use a brief single-line instruction, e.g. “Drag down at center to open.” Tools should fit together in one row where possible.
+- Glaze effects (Cloud, Pooling, Breaking, Speckles, Layered edges, Controlled runs) use **two compact columns**. Keep other related glaze controls close together.
+- Latest explicit user override: **fonts may be smaller when needed**. Current phone tool labels, hints and actions are13px (supersedes earlier14px floor). Native fields remain16px to avoid iOS focus zoom; touch targets stay≥44px. Never return to9px labels.
+- Settings replace dock contents with Back/Escape. Back must preserve the selected slip material so painting can continue.
+- No phone “Tools ⠿”, Reset position or lone+/− palette control.
+
+### Implementation preserved
+Application changes are in interface.css, interface.js and the framing-only portions of atelier.js. Existing semantic controls move into the phone dock and restore their original desktop locations across the breakpoint. A canvas gesture freezes the current dock height until pointer release/cancel so the layout cannot move beneath a held stroke. A stage ResizeObserver triggers camera refitting; phone resize/refit is deferred while shaping or painting. Raycasting still uses actual canvas bounds.
+
+Do not change clay/tool behavior, the four stages, final-fire reveal, Undo history, or the shelf storage key. No package or lockfile edits. No deployment.
+
+### Verification status at preservation request
+Real Chromium156.0.8078.4 and WebKit27.2 were confirmed working before changes. The earlier Checkpoint B matrix passed320×667,390×844,430×844 and1280×720 in both engines: real clay drag creates Undo; settings/Back and slip retention; all six effect checkboxes; finish selection; dip; both kiln cycles; completion; no page errors. Six extra browser cases passed10/15lb framing and phone→desktop→phone restoration. All eight existing regression suites passed.
+
+**Latest compactness changes are newer than that completed matrix.** Content-sized dock, one-line hints, combined starter/shelf row and13px type are saved; final browser recheck and refreshed screenshots must complete before calling this final version verified. Some tests were still running while the user requested immediate preservation. Do not mistake older screenshots/results for verification of the last CSS edit.
+
+Evidence and runnable checks: docs/checkpoint-b-phone-dock/check.cjs, resize.cjs, review.html, README.md, after-results.json, resize-results.json, regression-results.txt and stage screenshots. Checkpoint A is the before reference. Refresh README/review text that still describes a fixed310px dock or14px floor.
+
+Known pre-existing desktop issue: compact WebKit effects disclosure may be obscured after expansion; the desktop test closes it with native keyboard Enter. Desktop redesign remains later. These are real browser-engine checks, not physical-phone performance certification.
+
+### Resume next
+1. Run the final check.cjs with the current13px threshold and current source; inspect320px starter, throwing, glazing and two-column effects screenshots.
+2. Explicitly verify the dock/canvas bounds stay steady during the initial touch and refit only after release; verify all single-line hints and visible control text fit.
+3. Refresh resize screenshots and documentation for content-sized dock/13px labels. Run required regressions if source changed beyond styling, then save a final Git checkpoint.
+4. Keep everything local; stop for review, no deploy.

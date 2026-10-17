@@ -1,0 +1,50 @@
+42 rings, 5 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+42 rings, 5 lb, open: connected pull/press, conserved volume and stable repeated shaping
+42 rings, 10 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+42 rings, 10 lb, open: connected pull/press, conserved volume and stable repeated shaping
+42 rings, 15 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+42 rings, 15 lb, open: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 5 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 5 lb, open: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 10 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 10 lb, open: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 15 lb, solid: connected pull/press, conserved volume and stable repeated shaping
+56 rings, 15 lb, open: connected pull/press, conserved volume and stable repeated shaping
+144 segments: 100 retraces bounded; hand marks preserved; seam smooth
+192 segments: 100 retraces bounded; hand marks preserved; seam smooth
+Touch jitter filtered; out-of-surface jump does not bridge cuts
+Continuous brush, wrap seam, missed contact, surface transition and fine/broad brush checks passed
+Glaze preview, fired finish, and re-glazing uniform transitions passed
+Cloud finish is optional and gated by final firing
+Independent reactive effect uniforms and intensity survive firing
+5 lb: shortening, deepening, widening, height change, and neck squeeze passed
+10 lb: shortening, deepening, widening, height change, and neck squeeze passed
+15 lb: shortening, deepening, widening, height change, and neck squeeze passed
+5 lb: rib compression, opening, widening, and attached rim passed
+10 lb: rib compression, opening, widening, and attached rim passed
+15 lb: rib compression, opening, widening, and attached rim passed
+5 lb: connected shell, deeper opening, protected floor and stable height
+10 lb: connected shell, deeper opening, protected floor and stable height
+15 lb: connected shell, deeper opening, protected floor and stable height
+42 rings/5lb: directional contour, event-density independence, 300 stable gestures
+42 rings/10lb: directional contour, event-density independence, 300 stable gestures
+42 rings/15lb: directional contour, event-density independence, 300 stable gestures
+56 rings/5lb: directional contour, event-density independence, 300 stable gestures
+56 rings/10lb: directional contour, event-density independence, 300 stable gestures
+56 rings/15lb: directional contour, event-density independence, 300 stable gestures
+Seven-plus pieces retained, re-glaze identity stable, quota failure honest and recoverable
+(node:4492) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/salene/.codex/.chatgpt-projects/g-p-6aa4b925bba4819181370a3570ea86a5/clay-handoff-20261011/three.module.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/salene/.codex/.chatgpt-projects/g-p-6aa4b925bba4819181370a3570ea86a5/clay-handoff-20261011/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Water: local softening without deformation, distant clay unchanged, full drying and blocked after firing
+Water changes local width and height response under equal shaping pressure
+sponge, paused: bounded sponge softening / rib recovery, distant groove preserved
+sponge, turning: bounded sponge softening / rib recovery, distant groove preserved
+rib, paused: bounded sponge softening / rib recovery, distant groove preserved
+rib, turning: bounded sponge softening / rib recovery, distant groove preserved
+All water and held-smoothing regression checks passed
+Mid-gesture tool changes cleanly finish shaping and brush gestures
+Rib center/inside contact leaves outer smoothing inactive
+Shallow sponge marks disappear while deep cuts retain their floor
+Full-ring sponge recovery is capped
