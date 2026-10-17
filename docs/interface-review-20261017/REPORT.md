@@ -40,3 +40,6 @@ Recent work is preserved in Git and DECISIONS.md. Current screenshots and checks
 Final real-browser studio matrix passed in Chromium and WebKit at320,390,430 and1280px; desktop row alignment and unchanged toolbar bounds while the modal is open were checked separately. Guide interactions passed in both engines at320/1280px. All eight regression suites passed. Logs and screenshots are preserved locally in these documentation folders. This does not establish that the interface is intuitive for first-time users; that is why we are requesting human review.
 
 Published release:627db14. GitHub Pages build confirmed successful on October17; studio, guide and reviewer landing page verified live with HTTP200 and expected content. The release is ready for human feedback, not considered a finished design.
+
+## Guide visual continuity
+The terminology guide now matches the first clay field guide: olive learning panels, cream paper, black chapter bars, and editorial headings. Its teaching interactions are unchanged. Chromium and WebKit checks passed at 320 and 1280px; refreshed screenshots are in ../interface-guide/. This update changes only the guide presentation, not the studio interface.

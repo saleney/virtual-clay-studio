@@ -167,3 +167,7 @@ Final studio matrix passed Chromium/WebKit at320,390,430,1280 with current compa
 The latest explicit “deploy” supersedes earlier local-only instructions for this release. Publish the tested current studio plus guide/reviewer brief to the existing GitHub Pages main/root source. Keep the review framed as a work in progress; no claim of physical-device certification or completed UX design. Deployment outcome will be recorded after confirmation.
 
 Deployment confirmed: application/guide release627db14d23b39bc1b479a4fcc6bd7dba77810ecc pushed to main; GitHub Pages reported built with no error. Live studio, interface-guide and interface-review-20261017 returned HTTP200 with the expected new content. This confirmation is a documentation-only follow-up.
+
+## October 17 — Match the terminology guide to the first field guide
+
+At the user’s request, reused the original clay field guide’s olive (#a9bd85), cream (#fbf7ef), paper (#f2efe9), and black (#1e1e1b) palette, Georgia editorial hero, ruled panels, and numbered black chapter bars. Preserved the terminology guide interactions; no studio code or behavior changed. Real Chromium and WebKit checks passed at 320 and 1280px, including dialog interaction, spacing control, prompt builder, quiz, and no page overflow/errors. Reviewed refreshed screenshots under docs/interface-guide/. Publish under the existing deployment authorization.
